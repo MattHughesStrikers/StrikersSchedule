@@ -198,7 +198,7 @@ function MainView({ requests, loading, onSubmitRequest }) {
   const [formErr,    setFormErr]    = useState("");
 
   async function handleSubmit() {
-    if (!form.team.trim())     { setFormErr("Please enter your team name."); return; }
+    if (!form.team.trim())       { setFormErr("Please enter your team name."); return; }
     if (form.start === form.end) { setFormErr("Start and end time must be different."); return; }
     const overlapping = countOverlapping(requests, form);
     if (overlapping >= MAX_TEAMS) {
@@ -220,9 +220,14 @@ function MainView({ requests, loading, onSubmitRequest }) {
     }
   }
 
-  const upcoming   = requests.filter(r => r.status === "approved" && r.date >= fmt(today)).slice(0, 8);
-  const capCount   = form.field && form.date && form.start !== form.end ? countOverlapping(requests, form) : 0;
-  const capColor   = capCount >= MAX_TEAMS ? "#EF4444" : capCount >= 3 ? "#F59E0B" : "#00C87A";
+  // Show both approved AND pending in the public view
+  const upcoming = requests
+    .filter(r => (r.status === "approved" || r.status === "pending") && r.date >= fmt(today))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
+    .slice(0, 12);
+
+  const capCount = form.field && form.date && form.start !== form.end ? countOverlapping(requests, form) : 0;
+  const capColor = capCount >= MAX_TEAMS ? "#EF4444" : capCount >= 3 ? "#F59E0B" : "#00C87A";
 
   return (
     <div>
@@ -232,13 +237,19 @@ function MainView({ requests, loading, onSubmitRequest }) {
             {submitted && <div className="success-banner">✅ Request submitted! Waiting for admin approval.</div>}
             <div style={{ marginBottom: 12 }}>
               <div className="section-heading" style={{ marginBottom: 2 }}>FIELD SCHEDULE</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>Approved practice slots</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>Approved & pending slots</div>
             </div>
             <FieldLegend />
-            {loading ? <Spinner /> : <CalMonth requests={requests} filterStatus={["approved"]} />}
+            {/* Status legend */}
+            <div style={{ display: "flex", gap: 12, marginBottom: 16, fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
+              <span>✅ Approved</span>
+              <span>🟡 Pending approval</span>
+            </div>
+            {/* Show approved + pending on calendar */}
+            {loading ? <Spinner /> : <CalMonth requests={requests} filterStatus={["approved", "pending"]} />}
             <div className="section-heading" style={{ marginTop: 4 }}>UPCOMING SLOTS</div>
             {loading ? <Spinner /> : upcoming.length === 0
-              ? <div className="empty"><div className="empty-icon">📭</div><div className="empty-text">No upcoming approved slots yet</div></div>
+              ? <div className="empty"><div className="empty-icon">📭</div><div className="empty-text">No upcoming slots yet</div></div>
               : upcoming.map(r => (
                 <div key={r.id} className="req-item">
                   <div className="req-row"><span className="req-name">{r.team}</span><FieldPill field={r.field} /></div>
@@ -246,6 +257,7 @@ function MainView({ requests, loading, onSubmitRequest }) {
                     {new Date(r.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
                     &nbsp;·&nbsp;{r.start} – {r.end}
                   </div>
+                  <div style={{ marginTop: 6 }}><StatusBadge status={r.status} /></div>
                 </div>
               ))
             }
@@ -375,10 +387,10 @@ function AdminLogin({ onLogin, onBack }) {
 
 // ── Admin dashboard ───────────────────────────────────────────────────────────
 function AdminDashboard({ requests, loading, onApprove, onDeny, onCancel, onLogout }) {
-  const [tab,   setTab]   = useState("queue");
-  const [modal, setModal] = useState(null);
-  const [note,  setNote]  = useState("");
-  const [saving,setSaving]= useState(false);
+  const [tab,    setTab]   = useState("queue");
+  const [modal,  setModal] = useState(null);
+  const [note,   setNote]  = useState("");
+  const [saving, setSaving]= useState(false);
 
   const pending  = requests.filter(r => r.status === "pending");
   const approved = requests.filter(r => r.status === "approved");
@@ -639,7 +651,6 @@ export default function App() {
 
   useEffect(() => { loadRequests(); }, [loadRequests]);
 
-  // Auto-refresh every 30s
   useEffect(() => {
     const id = setInterval(loadRequests, 30000);
     return () => clearInterval(id);
