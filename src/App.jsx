@@ -37,6 +37,9 @@ async function dbInsert(req) {
 async function dbUpdate(id, patch) {
   await fetch(`${DB}?id=eq.${id}`, { method: "PATCH", headers: HEADERS, body: JSON.stringify(patch) });
 }
+async function dbDelete(id) {
+  await fetch(`${DB}?id=eq.${id}`, { method: "DELETE", headers: HEADERS });
+}
 
 // ── App config ────────────────────────────────────────────────────────────────
 const FIELDS = ["WRAC", "U8/U9 Field", "Pomponio"];
@@ -108,7 +111,7 @@ function Spinner() {
 }
 
 // ── Calendar month widget ─────────────────────────────────────────────────────
-function CalMonth({ requests, filterStatus, showActions, onApprove, onDeny, onCancel }) {
+function CalMonth({ requests, filterStatus, showActions, onApprove, onDeny, onCancel, onCoachCancel }) {
   const [cm,  setCm]  = useState(today.getMonth());
   const [cy,  setCy]  = useState(today.getFullYear());
   const [sel, setSel] = useState(null);
@@ -170,6 +173,7 @@ function CalMonth({ requests, filterStatus, showActions, onApprove, onDeny, onCa
                 <div style={{ fontWeight: 600, fontSize: 13 }}>{r.team}</div>
                 <StatusBadge status={r.status} />
               </div>
+              {/* Admin actions */}
               {showActions && (
                 <div style={{ display: "flex", gap: 4 }}>
                   {r.status === "pending" && <>
@@ -181,6 +185,12 @@ function CalMonth({ requests, filterStatus, showActions, onApprove, onDeny, onCa
                   }
                 </div>
               )}
+              {/* Coach cancel — only on pending, public view */}
+              {!showActions && r.status === "pending" && onCoachCancel && (
+                <button className="btn-secondary btn-cancel-req" style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => onCoachCancel(r)}>
+                  Cancel
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -190,12 +200,15 @@ function CalMonth({ requests, filterStatus, showActions, onApprove, onDeny, onCa
 }
 
 // ── Main public + request view ────────────────────────────────────────────────
-function MainView({ requests, loading, onSubmitRequest }) {
+function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
   const [tab,        setTab]        = useState("calendar");
   const [form,       setForm]       = useState({ team: "", field: FIELDS[0], date: fmt(addDays(today, 1)), start: "4:00 PM", end: "5:30 PM" });
   const [submitting, setSubmitting] = useState(false);
   const [submitted,  setSubmitted]  = useState(false);
   const [formErr,    setFormErr]    = useState("");
+  // Coach cancel confirmation modal
+  const [cancelModal, setCancelModal] = useState(null);
+  const [cancelling,  setCancelling]  = useState(false);
 
   async function handleSubmit() {
     if (!form.team.trim())       { setFormErr("Please enter your team name."); return; }
@@ -220,7 +233,17 @@ function MainView({ requests, loading, onSubmitRequest }) {
     }
   }
 
-  // Show both approved AND pending in the public view
+  async function confirmCoachCancel() {
+    if (!cancelModal) return;
+    setCancelling(true);
+    try {
+      await onCoachCancel(cancelModal.id);
+      setCancelModal(null);
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   const upcoming = requests
     .filter(r => (r.status === "approved" || r.status === "pending") && r.date >= fmt(today))
     .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
@@ -240,13 +263,17 @@ function MainView({ requests, loading, onSubmitRequest }) {
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>Approved & pending slots</div>
             </div>
             <FieldLegend />
-            {/* Status legend */}
             <div style={{ display: "flex", gap: 12, marginBottom: 16, fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
               <span>✅ Approved</span>
               <span>🟡 Pending approval</span>
             </div>
-            {/* Show approved + pending on calendar */}
-            {loading ? <Spinner /> : <CalMonth requests={requests} filterStatus={["approved", "pending"]} />}
+            {loading ? <Spinner /> : (
+              <CalMonth
+                requests={requests}
+                filterStatus={["approved", "pending"]}
+                onCoachCancel={r => setCancelModal(r)}
+              />
+            )}
             <div className="section-heading" style={{ marginTop: 4 }}>UPCOMING SLOTS</div>
             {loading ? <Spinner /> : upcoming.length === 0
               ? <div className="empty"><div className="empty-icon">📭</div><div className="empty-text">No upcoming slots yet</div></div>
@@ -257,7 +284,14 @@ function MainView({ requests, loading, onSubmitRequest }) {
                     {new Date(r.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
                     &nbsp;·&nbsp;{r.start} – {r.end}
                   </div>
-                  <div style={{ marginTop: 6 }}><StatusBadge status={r.status} /></div>
+                  <div style={{ marginTop: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <StatusBadge status={r.status} />
+                    {r.status === "pending" && (
+                      <button className="btn-secondary btn-cancel-req" style={{ padding: "5px 12px", fontSize: 12 }} onClick={() => setCancelModal(r)}>
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))
             }
@@ -338,6 +372,34 @@ function MainView({ requests, loading, onSubmitRequest }) {
           </>
         )}
       </div>
+
+      {/* Coach cancel confirmation modal */}
+      {cancelModal && (
+        <div className="modal-overlay" onClick={() => !cancelling && setCancelModal(null)}>
+          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+            <div className="modal-handle" />
+            <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, letterSpacing: 2, marginBottom: 4 }}>
+              🗑️ CANCEL REQUEST
+            </div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 20 }}>
+              {cancelModal.team} · {cancelModal.field}<br />
+              {new Date(cancelModal.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · {cancelModal.start}–{cancelModal.end}
+            </div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", marginBottom: 20 }}>
+              Are you sure you want to cancel this request? This cannot be undone.
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button className="btn-secondary btn-muted" style={{ flex: 1, padding: 14 }} onClick={() => setCancelModal(null)} disabled={cancelling}>
+                Keep It
+              </button>
+              <button className="btn-secondary btn-deny" style={{ flex: 2, padding: 14, fontWeight: 700, fontSize: 15, opacity: cancelling ? 0.6 : 1 }}
+                onClick={confirmCoachCancel} disabled={cancelling}>
+                {cancelling ? "Cancelling…" : "Yes, Cancel Request"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bottom-nav">
         <button className={`nav-item ${tab === "calendar" ? "active" : ""}`} onClick={() => setTab("calendar")}><span className="nav-icon">📅</span>SCHEDULE</button>
@@ -605,6 +667,8 @@ const css = `
   .btn-deny:hover { background: rgba(239,68,68,0.25); }
   .btn-muted { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); }
   .btn-muted:hover { background: rgba(255,255,255,0.14); }
+  .btn-cancel-req { background: rgba(239,68,68,0.12); color: #EF4444; border: none; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-weight: 700; cursor: pointer; }
+  .btn-cancel-req:hover { background: rgba(239,68,68,0.22); }
   .section-heading { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 2px; margin-bottom: 16px; }
   .slot-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
   .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
@@ -673,6 +737,11 @@ export default function App() {
     await dbUpdate(id, { status: "denied", note: n });
     setRequests(p => p.map(r => r.id === id ? { ...r, status: "denied", note: n } : r));
   }
+  // Coach cancels their own pending request — deletes it entirely
+  async function handleCoachCancel(id) {
+    await dbDelete(id);
+    setRequests(p => p.filter(r => r.id !== id));
+  }
 
   return (
     <>
@@ -689,11 +758,11 @@ export default function App() {
             <div className="topbar">
               <div>
                 <div className="topbar-logo">⚽ FIELDTIME</div>
-                <div className="topbar-sub">U9 Soccer · Field Scheduler</div>
+                <div className="topbar-sub">Strikers Soccer · Field Scheduler</div>
               </div>
               <button className="topbar-btn" onClick={() => setScreen("adminLogin")}>Admin</button>
             </div>
-            <MainView requests={requests} loading={loading} onSubmitRequest={handleSubmit} />
+            <MainView requests={requests} loading={loading} onSubmitRequest={handleSubmit} onCoachCancel={handleCoachCancel} />
           </>
         )}
 
