@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 
-// ── Google Fonts ──────────────────────────────────────────────────────────────
 const fontLink = document.createElement("link");
 fontLink.rel = "stylesheet";
 fontLink.href = "https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap";
@@ -26,13 +25,11 @@ function toDB(r) {
 
 async function dbFetch() {
   const res = await fetch(`${DB}?order=date.asc,start_time.asc`, { headers: HEADERS });
-  const data = await res.json();
-  return data.map(fromDB);
+  return (await res.json()).map(fromDB);
 }
 async function dbInsert(req) {
   const res = await fetch(DB, { method: "POST", headers: HEADERS, body: JSON.stringify(toDB(req)) });
-  const data = await res.json();
-  return fromDB(data[0]);
+  return fromDB((await res.json())[0]);
 }
 async function dbUpdate(id, patch) {
   await fetch(`${DB}?id=eq.${id}`, { method: "PATCH", headers: HEADERS, body: JSON.stringify(patch) });
@@ -69,11 +66,8 @@ function toMins(t) {
 function countOverlapping(requests, { field, date, start, end }) {
   const s = toMins(start), e = toMins(end);
   return requests.filter(r =>
-    r.status === "approved" &&
-    r.field  === field &&
-    r.date   === date &&
-    toMins(r.start) < e &&
-    toMins(r.end)   > s
+    r.status === "approved" && r.field === field && r.date === date &&
+    toMins(r.start) < e && toMins(r.end) > s
   ).length;
 }
 
@@ -86,18 +80,52 @@ function getCalDays(y, m) {
   return days;
 }
 
+// ── Export helper ─────────────────────────────────────────────────────────────
+function exportCSV(requests, startDate, endDate) {
+  const filtered = requests
+    .filter(r => r.status === "approved" && r.date >= startDate && r.date <= endDate)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+
+  if (filtered.length === 0) return false;
+
+  const dayName = d => new Date(d + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" });
+  const shortDate = d => new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" });
+
+  const rows = [
+    ["Date", "Day", "Field", "Team", "Start Time", "End Time", "Status"],
+    ...filtered.map(r => [
+      shortDate(r.date),
+      dayName(r.date),
+      r.field,
+      r.team,
+      r.start,
+      r.end,
+      "Approved"
+    ])
+  ];
+
+  const csv = rows.map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  const weekOf = new Date(startDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).replace(/ /g, "_");
+  a.href     = url;
+  a.download = `Strikers_Schedule_${weekOf}_to_${new Date(endDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }).replace(/ /g, "_")}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  return filtered.length;
+}
+
 // ── Shared atoms ──────────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
   const map = { pending: ["🟡","pending"], approved: ["✅","approved"], denied: ["❌","denied"] };
   const [icon, cls] = map[status] || ["",""];
   return <span className={`badge badge-${cls}`}>{icon} {status.toUpperCase()}</span>;
 }
-
 function FieldPill({ field }) {
   const c = FIELD_COLORS[field] || { light: "#eee", text: "#333" };
   return <span className="field-pill" style={{ background: c.light, color: c.text }}>{field}</span>;
 }
-
 function FieldLegend() {
   return (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
@@ -105,7 +133,6 @@ function FieldLegend() {
     </div>
   );
 }
-
 function Spinner() {
   return <div style={{ textAlign: "center", padding: "60px 0", color: "rgba(255,255,255,0.3)", fontSize: 14 }}>Loading…</div>;
 }
@@ -118,12 +145,10 @@ function CalMonth({ requests, filterStatus, showActions, onApprove, onDeny, onCa
   const todayStr = fmt(today);
   const days = getCalDays(cy, cm);
   const vis  = filterStatus ? requests.filter(r => filterStatus.includes(r.status)) : requests;
-
   const evForDay = day => {
     const d = fmt(new Date(cy, cm, day));
     return vis.filter(r => r.date === d).sort((a, b) => a.start.localeCompare(b.start));
   };
-
   const prev = () => { if (cm === 0) { setCm(11); setCy(y => y - 1); } else setCm(m => m - 1); };
   const next = () => { if (cm === 11) { setCm(0); setCy(y => y + 1); } else setCm(m => m + 1); };
 
@@ -152,7 +177,6 @@ function CalMonth({ requests, filterStatus, showActions, onApprove, onDeny, onCa
           })}
         </div>
       </div>
-
       {sel && (
         <div className="card">
           <div className="card-title">
@@ -173,7 +197,6 @@ function CalMonth({ requests, filterStatus, showActions, onApprove, onDeny, onCa
                 <div style={{ fontWeight: 600, fontSize: 13 }}>{r.team}</div>
                 <StatusBadge status={r.status} />
               </div>
-              {/* Admin actions */}
               {showActions && (
                 <div style={{ display: "flex", gap: 4 }}>
                   {r.status === "pending" && <>
@@ -185,7 +208,6 @@ function CalMonth({ requests, filterStatus, showActions, onApprove, onDeny, onCa
                   }
                 </div>
               )}
-              {/* Coach cancel — only on pending, public view */}
               {!showActions && r.status === "pending" && onCoachCancel && (
                 <button className="btn-secondary btn-cancel-req" style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => onCoachCancel(r)}>
                   Cancel
@@ -199,6 +221,110 @@ function CalMonth({ requests, filterStatus, showActions, onApprove, onDeny, onCa
   );
 }
 
+// ── Export panel (admin only) ─────────────────────────────────────────────────
+function ExportPanel({ requests }) {
+  const [startDate, setStartDate] = useState(fmt(today));
+  const [endDate,   setEndDate]   = useState(fmt(addDays(today, 7)));
+  const [exported,  setExported]  = useState(null);
+
+  const previewCount = requests.filter(r =>
+    r.status === "approved" && r.date >= startDate && r.date <= endDate
+  ).length;
+
+  function handleExport() {
+    const count = exportCSV(requests, startDate, endDate);
+    if (count === false) {
+      setExported(0);
+    } else {
+      setExported(count);
+    }
+    setTimeout(() => setExported(null), 4000);
+  }
+
+  return (
+    <div className="card">
+      <div className="card-title">📤 EXPORT SCHEDULE</div>
+      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 18 }}>
+        Exports approved slots only as a CSV file — opens in Excel or Google Sheets
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 18 }}>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label">Start Date</label>
+          <input
+            className="form-input"
+            type="date"
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
+          />
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label">End Date</label>
+          <input
+            className="form-input"
+            type="date"
+            value={endDate}
+            min={startDate}
+            onChange={e => setEndDate(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Quick range buttons */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
+        {[
+          { label: "This week",  start: fmt(today), end: fmt(addDays(today, 6)) },
+          { label: "Next week",  start: fmt(addDays(today, 7)), end: fmt(addDays(today, 13)) },
+          { label: "This month", start: fmt(today), end: fmt(new Date(today.getFullYear(), today.getMonth() + 1, 0)) },
+        ].map(({ label, start, end }) => (
+          <button key={label}
+            onClick={() => { setStartDate(start); setEndDate(end); }}
+            style={{
+              padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)",
+              background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)",
+              fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer"
+            }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Preview count */}
+      <div style={{
+        padding: "12px 16px", background: "rgba(255,255,255,0.04)", borderRadius: 10,
+        border: "1px solid rgba(255,255,255,0.08)", marginBottom: 16,
+        display: "flex", alignItems: "center", justifyContent: "space-between"
+      }}>
+        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>Approved slots in range</span>
+        <span style={{
+          fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, letterSpacing: 1,
+          color: previewCount > 0 ? "#00C87A" : "rgba(255,255,255,0.3)"
+        }}>{previewCount}</span>
+      </div>
+
+      {exported === 0 && (
+        <div style={{ color: "#F59E0B", fontSize: 13, marginBottom: 12, textAlign: "center", fontWeight: 600 }}>
+          ⚠️ No approved slots found in that date range.
+        </div>
+      )}
+      {exported > 0 && (
+        <div style={{ color: "#00C87A", fontSize: 13, marginBottom: 12, textAlign: "center", fontWeight: 600 }}>
+          ✅ {exported} slot{exported > 1 ? "s" : ""} exported successfully!
+        </div>
+      )}
+
+      <button
+        className="btn-primary"
+        onClick={handleExport}
+        disabled={previewCount === 0}
+        style={{ opacity: previewCount === 0 ? 0.4 : 1 }}
+      >
+        📥 DOWNLOAD CSV
+      </button>
+    </div>
+  );
+}
+
 // ── Main public + request view ────────────────────────────────────────────────
 function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
   const [tab,        setTab]        = useState("calendar");
@@ -206,9 +332,8 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitted,  setSubmitted]  = useState(false);
   const [formErr,    setFormErr]    = useState("");
-  // Coach cancel confirmation modal
-  const [cancelModal, setCancelModal] = useState(null);
-  const [cancelling,  setCancelling]  = useState(false);
+  const [cancelModal,setCancelModal]= useState(null);
+  const [cancelling, setCancelling] = useState(false);
 
   async function handleSubmit() {
     if (!form.team.trim())       { setFormErr("Please enter your team name."); return; }
@@ -218,8 +343,7 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
       setFormErr(`⚠️ ${form.field} already has ${overlapping} approved teams during that time — the field is full (max ${MAX_TEAMS}). Please choose a different time or field.`);
       return;
     }
-    setFormErr("");
-    setSubmitting(true);
+    setFormErr(""); setSubmitting(true);
     try {
       await onSubmitRequest(form);
       setSubmitted(true);
@@ -236,12 +360,8 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
   async function confirmCoachCancel() {
     if (!cancelModal) return;
     setCancelling(true);
-    try {
-      await onCoachCancel(cancelModal.id);
-      setCancelModal(null);
-    } finally {
-      setCancelling(false);
-    }
+    try { await onCoachCancel(cancelModal.id); setCancelModal(null); }
+    finally { setCancelling(false); }
   }
 
   const upcoming = requests
@@ -268,11 +388,7 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
               <span>🟡 Pending approval</span>
             </div>
             {loading ? <Spinner /> : (
-              <CalMonth
-                requests={requests}
-                filterStatus={["approved", "pending"]}
-                onCoachCancel={r => setCancelModal(r)}
-              />
+              <CalMonth requests={requests} filterStatus={["approved","pending"]} onCoachCancel={r => setCancelModal(r)} />
             )}
             <div className="section-heading" style={{ marginTop: 4 }}>UPCOMING SLOTS</div>
             {loading ? <Spinner /> : upcoming.length === 0
@@ -287,9 +403,7 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
                   <div style={{ marginTop: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <StatusBadge status={r.status} />
                     {r.status === "pending" && (
-                      <button className="btn-secondary btn-cancel-req" style={{ padding: "5px 12px", fontSize: 12 }} onClick={() => setCancelModal(r)}>
-                        Cancel
-                      </button>
+                      <button className="btn-secondary btn-cancel-req" style={{ padding: "5px 12px", fontSize: 12 }} onClick={() => setCancelModal(r)}>Cancel</button>
                     )}
                   </div>
                 </div>
@@ -301,37 +415,23 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
         {tab === "request" && (
           <>
             <div className="section-heading" style={{ marginBottom: 4 }}>REQUEST FIELD TIME</div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>
-              No login needed — enter your team name and submit
-            </div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>No login needed — enter your team name and submit</div>
             <div className="card">
               <div className="form-group">
                 <label className="form-label">Team Name</label>
-                <input
-                  className="form-input"
-                  type="text"
-                  value={form.team}
-                  onChange={e => setForm({ ...form, team: e.target.value })}
-                  placeholder="e.g. U8/U9 Boys, U9 Girls…"
-                  maxLength={50}
-                />
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>
-                  Type your team name exactly as you want it to appear
-                </div>
+                <input className="form-input" type="text" value={form.team} onChange={e => setForm({ ...form, team: e.target.value })} placeholder="e.g. U8/U9 Boys, U9 Girls…" maxLength={50} />
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>Type your team name exactly as you want it to appear</div>
               </div>
-
               <div className="form-group">
                 <label className="form-label">Field</label>
                 <select className="form-select" value={form.field} onChange={e => setForm({ ...form, field: e.target.value })}>
                   {FIELDS.map(f => <option key={f} value={f}>{f}</option>)}
                 </select>
               </div>
-
               <div className="form-group">
                 <label className="form-label">Date</label>
                 <input className="form-input" type="date" value={form.date} min={fmt(addDays(today, 1))} onChange={e => setForm({ ...form, date: e.target.value })} />
               </div>
-
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div className="form-group">
                   <label className="form-label">Start</label>
@@ -346,7 +446,6 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
                   </select>
                 </div>
               </div>
-
               {capCount > 0 && form.start !== form.end && (
                 <div style={{ marginBottom: 18 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}>
@@ -356,14 +455,9 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
                   <div style={{ height: 6, background: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" }}>
                     <div style={{ height: "100%", width: `${Math.min(capCount / MAX_TEAMS, 1) * 100}%`, background: capColor, borderRadius: 3, transition: "width 0.3s" }} />
                   </div>
-                  {capCount >= MAX_TEAMS && (
-                    <div style={{ marginTop: 8, fontSize: 12, color: "#EF4444", fontWeight: 600 }}>
-                      🔴 Slot is full — please pick a different time or field
-                    </div>
-                  )}
+                  {capCount >= MAX_TEAMS && <div style={{ marginTop: 8, fontSize: 12, color: "#EF4444", fontWeight: 600 }}>🔴 Slot is full — please pick a different time or field</div>}
                 </div>
               )}
-
               {formErr && <div style={{ color: "#EF4444", fontSize: 13, marginBottom: 12, lineHeight: 1.5 }}>{formErr}</div>}
               <button className="btn-primary" onClick={handleSubmit} disabled={submitting} style={{ opacity: submitting ? 0.6 : 1 }}>
                 {submitting ? "SUBMITTING…" : "SUBMIT REQUEST"}
@@ -373,27 +467,19 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
         )}
       </div>
 
-      {/* Coach cancel confirmation modal */}
       {cancelModal && (
         <div className="modal-overlay" onClick={() => !cancelling && setCancelModal(null)}>
           <div className="modal-sheet" onClick={e => e.stopPropagation()}>
             <div className="modal-handle" />
-            <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, letterSpacing: 2, marginBottom: 4 }}>
-              🗑️ CANCEL REQUEST
-            </div>
+            <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, letterSpacing: 2, marginBottom: 4 }}>🗑️ CANCEL REQUEST</div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 20 }}>
               {cancelModal.team} · {cancelModal.field}<br />
               {new Date(cancelModal.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · {cancelModal.start}–{cancelModal.end}
             </div>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", marginBottom: 20 }}>
-              Are you sure you want to cancel this request? This cannot be undone.
-            </div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", marginBottom: 20 }}>Are you sure you want to cancel this request? This cannot be undone.</div>
             <div style={{ display: "flex", gap: 10 }}>
-              <button className="btn-secondary btn-muted" style={{ flex: 1, padding: 14 }} onClick={() => setCancelModal(null)} disabled={cancelling}>
-                Keep It
-              </button>
-              <button className="btn-secondary btn-deny" style={{ flex: 2, padding: 14, fontWeight: 700, fontSize: 15, opacity: cancelling ? 0.6 : 1 }}
-                onClick={confirmCoachCancel} disabled={cancelling}>
+              <button className="btn-secondary btn-muted" style={{ flex: 1, padding: 14 }} onClick={() => setCancelModal(null)} disabled={cancelling}>Keep It</button>
+              <button className="btn-secondary btn-deny" style={{ flex: 2, padding: 14, fontWeight: 700, fontSize: 15, opacity: cancelling ? 0.6 : 1 }} onClick={confirmCoachCancel} disabled={cancelling}>
                 {cancelling ? "Cancelling…" : "Yes, Cancel Request"}
               </button>
             </div>
@@ -414,12 +500,10 @@ function AdminLogin({ onLogin, onBack }) {
   const [email, setEmail] = useState("");
   const [pass,  setPass]  = useState("");
   const [err,   setErr]   = useState("");
-
   function go() {
     if (email === ADMIN.email && pass === ADMIN.password) { onLogin(); return; }
     setErr("Invalid admin credentials.");
   }
-
   return (
     <div className="login-wrap">
       <div className="login-logo">⚽ FIELDTIME</div>
@@ -435,13 +519,8 @@ function AdminLogin({ onLogin, onBack }) {
           <input className="form-input" type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="••••••••" onKeyDown={e => e.key === "Enter" && go()} />
         </div>
         <button className="btn-primary" onClick={go}>SIGN IN AS ADMIN</button>
-        <button onClick={onBack} style={{ display: "block", width: "100%", marginTop: 12, background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontFamily: "'DM Sans',sans-serif", fontSize: 14, cursor: "pointer", padding: "8px 0" }}>
-          ← Back to Schedule
-        </button>
-        <div className="login-hint">
-          <strong style={{ color: "rgba(255,255,255,0.6)" }}>Admin credentials</strong><br />
-          Set your real email &amp; password in App.jsx line 46
-        </div>
+        <button onClick={onBack} style={{ display: "block", width: "100%", marginTop: 12, background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontFamily: "'DM Sans',sans-serif", fontSize: 14, cursor: "pointer", padding: "8px 0" }}>← Back to Schedule</button>
+        <div className="login-hint"><strong style={{ color: "rgba(255,255,255,0.6)" }}>Admin credentials</strong><br />Set your real email &amp; password in App.jsx line 46</div>
       </div>
     </div>
   );
@@ -466,9 +545,7 @@ function AdminDashboard({ requests, loading, onApprove, onDeny, onCancel, onLogo
       if (modal.action === "approve") await onApprove(modal.id);
       if (modal.action === "deny")    await onDeny(modal.id, note);
       if (modal.action === "cancel")  await onCancel(modal.id, note);
-    } finally {
-      setSaving(false); setModal(null); setNote("");
-    }
+    } finally { setSaving(false); setModal(null); setNote(""); }
   }
 
   return (
@@ -485,14 +562,14 @@ function AdminDashboard({ requests, loading, onApprove, onDeny, onCancel, onLogo
           <div className="stat-box"><div className="stat-num" style={{ color: "rgba(255,255,255,0.5)" }}>{requests.length}</div><div className="stat-label">Total</div></div>
         </div>
 
-        <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
-          {[["queue", `Queue (${pending.length})`], ["calendar", "Calendar"], ["all", "All"]].map(([k, l]) => (
+        <div style={{ display: "flex", gap: 6, marginBottom: 20, overflowX: "auto" }}>
+          {[["queue",`Queue (${pending.length})`],["calendar","Calendar"],["all","All"],["export","Export"]].map(([k,l]) => (
             <button key={k} onClick={() => setTab(k)} style={{
-              flex: "1", padding: "10px 12px", borderRadius: 10, border: "none",
+              flex: "0 0 auto", padding: "10px 14px", borderRadius: 10, border: "none",
               fontFamily: "'DM Sans',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer",
               background: tab === k ? "#00C87A" : "rgba(255,255,255,0.07)",
               color: tab === k ? "#0B1F3A" : "rgba(255,255,255,0.6)",
-              transition: "all 0.15s"
+              transition: "all 0.15s", whiteSpace: "nowrap"
             }}>{l}</button>
           ))}
         </div>
@@ -509,11 +586,7 @@ function AdminDashboard({ requests, loading, onApprove, onDeny, onCancel, onLogo
                     {new Date(r.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
                     &nbsp;·&nbsp;{r.start} – {r.end}
                   </div>
-                  {full && (
-                    <div style={{ marginTop: 8, padding: "8px 10px", background: "rgba(239,68,68,0.12)", borderRadius: 8, fontSize: 12, color: "#EF4444", fontWeight: 600 }}>
-                      ⚠️ Field already has {MAX_TEAMS} teams in this slot
-                    </div>
-                  )}
+                  {full && <div style={{ marginTop: 8, padding: "8px 10px", background: "rgba(239,68,68,0.12)", borderRadius: 8, fontSize: 12, color: "#EF4444", fontWeight: 600 }}>⚠️ Field already has {MAX_TEAMS} teams in this slot</div>}
                   <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                     <button className="btn-secondary btn-approve" onClick={() => setModal({ id: r.id, action: "approve", req: r })}>✅ Approve</button>
                     <button className="btn-secondary btn-deny"    onClick={() => setModal({ id: r.id, action: "deny",    req: r })}>❌ Deny</button>
@@ -524,18 +597,15 @@ function AdminDashboard({ requests, loading, onApprove, onDeny, onCancel, onLogo
         )}
 
         {tab === "calendar" && (loading ? <Spinner /> : (
-          <>
-            <FieldLegend />
-            <CalMonth requests={requests} showActions
-              onApprove={(id, req) => setModal({ id, action: "approve", req })}
-              onDeny={(id,    req) => setModal({ id, action: "deny",    req })}
-              onCancel={(id,  req) => setModal({ id, action: "cancel",  req })}
-            />
-          </>
+          <><FieldLegend /><CalMonth requests={requests} showActions
+            onApprove={(id, req) => setModal({ id, action: "approve", req })}
+            onDeny={(id,    req) => setModal({ id, action: "deny",    req })}
+            onCancel={(id,  req) => setModal({ id, action: "cancel",  req })}
+          /></>
         ))}
 
         {tab === "all" && (loading ? <Spinner /> :
-          ["pending", "approved", "denied"].map(status => {
+          ["pending","approved","denied"].map(status => {
             const group = all.filter(r => r.status === status);
             if (!group.length) return null;
             return (
@@ -551,11 +621,7 @@ function AdminDashboard({ requests, loading, onApprove, onDeny, onCancel, onLogo
                       &nbsp;·&nbsp;{r.start}–{r.end}
                     </div>
                     {r.note && <div style={{ marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Note: {r.note}</div>}
-                    {status === "approved" && (
-                      <button className="btn-secondary btn-muted" style={{ marginTop: 10, width: "100%" }} onClick={() => setModal({ id: r.id, action: "cancel", req: r })}>
-                        Override / Cancel Slot
-                      </button>
-                    )}
+                    {status === "approved" && <button className="btn-secondary btn-muted" style={{ marginTop: 10, width: "100%" }} onClick={() => setModal({ id: r.id, action: "cancel", req: r })}>Override / Cancel Slot</button>}
                     {status === "pending" && (
                       <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                         <button className="btn-secondary btn-approve" onClick={() => setModal({ id: r.id, action: "approve", req: r })}>✅ Approve</button>
@@ -568,6 +634,8 @@ function AdminDashboard({ requests, loading, onApprove, onDeny, onCancel, onLogo
             );
           })
         )}
+
+        {tab === "export" && <ExportPanel requests={requests} />}
       </div>
 
       {modal && (
@@ -594,12 +662,9 @@ function AdminDashboard({ requests, loading, onApprove, onDeny, onCancel, onLogo
             )}
             <div style={{ display: "flex", gap: 10 }}>
               <button className="btn-secondary btn-muted" style={{ flex: 1, padding: 14 }} onClick={() => setModal(null)} disabled={saving}>Back</button>
-              <button
-                className={`btn-secondary ${modal.action === "approve" ? "btn-approve" : "btn-deny"}`}
+              <button className={`btn-secondary ${modal.action === "approve" ? "btn-approve" : "btn-deny"}`}
                 style={{ flex: 2, padding: 14, fontWeight: 700, fontSize: 15, opacity: saving ? 0.6 : 1 }}
-                onClick={confirmAction}
-                disabled={saving}
-              >
+                onClick={confirmAction} disabled={saving}>
                 {saving ? "Saving…" : modal.action === "approve" ? "Confirm Approval" : modal.action === "deny" ? "Confirm Denial" : "Confirm Cancel"}
               </button>
             </div>
@@ -611,7 +676,7 @@ function AdminDashboard({ requests, loading, onApprove, onDeny, onCancel, onLogo
         <button className={`nav-item ${tab === "queue"    ? "active" : ""}`} onClick={() => setTab("queue")}   ><span className="nav-icon">📥</span>QUEUE</button>
         <button className={`nav-item ${tab === "calendar" ? "active" : ""}`} onClick={() => setTab("calendar")}><span className="nav-icon">📅</span>CALENDAR</button>
         <button className={`nav-item ${tab === "all"      ? "active" : ""}`} onClick={() => setTab("all")}     ><span className="nav-icon">📋</span>ALL</button>
-        <button className="nav-item" onClick={onLogout}><span className="nav-icon">🚪</span>OUT</button>
+        <button className={`nav-item ${tab === "export"   ? "active" : ""}`} onClick={() => setTab("export")}  ><span className="nav-icon">📤</span>EXPORT</button>
       </div>
     </div>
   );
@@ -629,9 +694,9 @@ const css = `
   .topbar-btn:hover { background: rgba(255,255,255,0.14); }
   .screen { padding: 20px; padding-bottom: 100px; }
   .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: #0D2545; border-top: 1px solid rgba(255,255,255,0.08); display: flex; z-index: 200; }
-  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0 12px; gap: 4px; cursor: pointer; border: none; background: none; color: rgba(255,255,255,0.35); font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; transition: color 0.15s; }
+  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0 12px; gap: 4px; cursor: pointer; border: none; background: none; color: rgba(255,255,255,0.35); font-family: 'DM Sans', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.5px; transition: color 0.15s; }
   .nav-item.active { color: #00C87A; }
-  .nav-icon { font-size: 20px; }
+  .nav-icon { font-size: 18px; }
   .card { background: #112B50; border-radius: 16px; padding: 18px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.06); }
   .card-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; margin-bottom: 14px; }
   .badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; }
@@ -660,6 +725,7 @@ const css = `
   .btn-primary { width: 100%; background: #00C87A; color: #0B1F3A; border: none; border-radius: 12px; font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px; padding: 14px; cursor: pointer; transition: background 0.15s, transform 0.1s; }
   .btn-primary:hover { background: #00E089; }
   .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { cursor: not-allowed; }
   .btn-secondary { flex: 1; padding: 10px; border-radius: 10px; border: none; font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.15s; }
   .btn-approve { background: rgba(0,200,122,0.15); color: #00C87A; }
   .btn-approve:hover { background: rgba(0,200,122,0.25); }
@@ -706,42 +772,18 @@ export default function App() {
       setRequests(data);
       setDbError(false);
     } catch (e) {
-      console.error(e);
-      setDbError(true);
-    } finally {
-      setLoading(false);
-    }
+      console.error(e); setDbError(true);
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { loadRequests(); }, [loadRequests]);
+  useEffect(() => { const id = setInterval(loadRequests, 30000); return () => clearInterval(id); }, [loadRequests]);
 
-  useEffect(() => {
-    const id = setInterval(loadRequests, 30000);
-    return () => clearInterval(id);
-  }, [loadRequests]);
-
-  async function handleSubmit(req) {
-    const newReq = await dbInsert(req);
-    setRequests(p => [...p, newReq]);
-  }
-  async function handleApprove(id) {
-    await dbUpdate(id, { status: "approved" });
-    setRequests(p => p.map(r => r.id === id ? { ...r, status: "approved" } : r));
-  }
-  async function handleDeny(id, note) {
-    await dbUpdate(id, { status: "denied", note });
-    setRequests(p => p.map(r => r.id === id ? { ...r, status: "denied", note } : r));
-  }
-  async function handleCancel(id, note) {
-    const n = note || "Cancelled by admin";
-    await dbUpdate(id, { status: "denied", note: n });
-    setRequests(p => p.map(r => r.id === id ? { ...r, status: "denied", note: n } : r));
-  }
-  // Coach cancels their own pending request — deletes it entirely
-  async function handleCoachCancel(id) {
-    await dbDelete(id);
-    setRequests(p => p.filter(r => r.id !== id));
-  }
+  async function handleSubmit(req)       { const n = await dbInsert(req); setRequests(p => [...p, n]); }
+  async function handleApprove(id)       { await dbUpdate(id, { status: "approved" }); setRequests(p => p.map(r => r.id === id ? { ...r, status: "approved" } : r)); }
+  async function handleDeny(id, note)    { await dbUpdate(id, { status: "denied", note }); setRequests(p => p.map(r => r.id === id ? { ...r, status: "denied", note } : r)); }
+  async function handleCancel(id, note)  { const n = note || "Cancelled by admin"; await dbUpdate(id, { status: "denied", note: n }); setRequests(p => p.map(r => r.id === id ? { ...r, status: "denied", note: n } : r)); }
+  async function handleCoachCancel(id)   { await dbDelete(id); setRequests(p => p.filter(r => r.id !== id)); }
 
   return (
     <>
@@ -752,44 +794,28 @@ export default function App() {
             ⚠️ Could not connect to database. Check your connection and refresh.
           </div>
         )}
-
         {screen === "main" && (
           <>
             <div className="topbar">
-              <div>
-                <div className="topbar-logo">⚽ FIELDTIME</div>
-                <div className="topbar-sub">Strikers Soccer · Field Scheduler</div>
-              </div>
+              <div><div className="topbar-logo">⚽ FIELDTIME</div><div className="topbar-sub">Strikers · Field Scheduler</div></div>
               <button className="topbar-btn" onClick={() => setScreen("adminLogin")}>Admin</button>
             </div>
             <MainView requests={requests} loading={loading} onSubmitRequest={handleSubmit} onCoachCancel={handleCoachCancel} />
           </>
         )}
-
         {screen === "adminLogin" && (
           <AdminLogin onLogin={() => { setScreen("admin"); loadRequests(); }} onBack={() => setScreen("main")} />
         )}
-
         {screen === "admin" && (
           <>
             <div className="topbar">
-              <div>
-                <div className="topbar-logo">⚽ FIELDTIME</div>
-                <div className="topbar-sub">Admin Panel</div>
-              </div>
+              <div><div className="topbar-logo">⚽ FIELDTIME</div><div className="topbar-sub">Admin Panel</div></div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <button className="topbar-btn" onClick={loadRequests} title="Refresh">🔄</button>
+                <button className="topbar-btn" onClick={loadRequests}>🔄</button>
                 <button className="topbar-btn" onClick={() => setScreen("main")}>← Public</button>
               </div>
             </div>
-            <AdminDashboard
-              requests={requests}
-              loading={loading}
-              onApprove={handleApprove}
-              onDeny={handleDeny}
-              onCancel={handleCancel}
-              onLogout={() => setScreen("main")}
-            />
+            <AdminDashboard requests={requests} loading={loading} onApprove={handleApprove} onDeny={handleDeny} onCancel={handleCancel} onLogout={() => setScreen("main")} />
           </>
         )}
       </div>
