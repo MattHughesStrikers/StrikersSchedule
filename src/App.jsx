@@ -51,8 +51,6 @@ const FIELD_COLORS = {
 const FIELD_CAPACITY = { "WRAC": 4, "U8/U9 Field": 3, "Pomponio": 4 };
 const MAX_TEAMS  = 4;
 const TIME_SLOTS = ["3:00 PM","3:30 PM","4:00 PM","4:30 PM","5:00 PM","5:30 PM","6:00 PM","6:30 PM","7:00 PM","7:30 PM","8:00 PM","8:30 PM","9:00 PM"];
-
-// ↓ KEY FIX: 2-letter day names so all 7 fit on any phone screen
 const DAYS_SHORT = ["Su","Mo","Tu","We","Th","Fr","Sa"];
 const MONTHS     = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const ADMIN      = { email: "admin@soccer.com", password: "admin123" };
@@ -162,7 +160,6 @@ function CalMonth({ requests, filterStatus, showActions, onApprove, onDeny, onCa
           <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:19, letterSpacing:2 }}>{MONTHS[cm]} {cy}</span>
           <button onClick={next} style={{ background:"none", border:"none", color:"#F8FAFC", fontSize:22, cursor:"pointer", padding:"0 8px" }}>›</button>
         </div>
-        {/* ↓ KEY FIX: minmax(0,1fr) forces columns to shrink, prevents overflow */}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(7, minmax(0,1fr))", gap:2 }}>
           {DAYS_SHORT.map(d => (
             <div key={d} style={{ textAlign:"center", fontSize:9, color:"rgba(255,255,255,0.45)", fontWeight:700, padding:"3px 0", letterSpacing:0 }}>{d}</div>
@@ -361,7 +358,8 @@ function ExportPanel({ requests }) {
 
 // ── Main public + coach view ──────────────────────────────────────────────────
 function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
-  const [tab,         setTab]        = useState("calendar");
+  // ↓ KEY FIX #1: default to "week" instead of "calendar"
+  const [tab,         setTab]        = useState("week");
   const [form,        setForm]       = useState({team:"",field:FIELDS[0],date:fmt(addDays(today,1)),start:"4:00 PM",end:"5:30 PM"});
   const [submitting,  setSubmitting] = useState(false);
   const [submitted,   setSubmitted]  = useState(false);
@@ -380,7 +378,7 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
       setSubmitted(true);
       setForm({team:"",field:FIELDS[0],date:fmt(addDays(today,1)),start:"4:00 PM",end:"5:30 PM"});
       setTimeout(()=>setSubmitted(false),3500);
-      setTab("calendar");
+      setTab("week");
     } catch(e){ setFormErr("Something went wrong. Please try again."); }
     finally { setSubmitting(false); }
   }
@@ -403,6 +401,18 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
     <div>
       <div className="screen">
 
+        {/* ── WEEKLY tab (now default) ── */}
+        {tab==="week" && (
+          <>
+            <div style={{marginBottom:16}}>
+              <div className="section-heading" style={{marginBottom:2}}>WEEKLY VIEW</div>
+              <div style={{fontSize:13,color:"rgba(255,255,255,0.4)"}}>All requests by day & field</div>
+            </div>
+            {loading ? <Spinner/> : <WeeklyView requests={requests}/>}
+          </>
+        )}
+
+        {/* ── SCHEDULE (calendar) tab ── */}
         {tab==="calendar" && (
           <>
             {submitted && <div className="success-banner">✅ Request submitted! Waiting for admin approval.</div>}
@@ -415,7 +425,6 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
               <span>✅ Approved</span><span>🟡 Pending</span>
             </div>
             {loading ? <Spinner/> : <CalMonth requests={requests} filterStatus={["approved","pending"]} onCoachCancel={r=>setCancelModal(r)}/>}
-            {/* ↓ KEY FIX: SectionDivider creates clear visual break before upcoming slots */}
             <SectionDivider title="UPCOMING SLOTS"/>
             {loading ? <Spinner/> : upcoming.length===0
               ? <div className="empty"><div className="empty-icon">📭</div><div className="empty-text">No upcoming slots yet</div></div>
@@ -437,16 +446,7 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
           </>
         )}
 
-        {tab==="week" && (
-          <>
-            <div style={{marginBottom:16}}>
-              <div className="section-heading" style={{marginBottom:2}}>WEEKLY VIEW</div>
-              <div style={{fontSize:13,color:"rgba(255,255,255,0.4)"}}>All requests by day & field</div>
-            </div>
-            {loading ? <Spinner/> : <WeeklyView requests={requests}/>}
-          </>
-        )}
-
+        {/* ── REQUEST tab ── */}
         {tab==="request" && (
           <>
             <div className="section-heading" style={{marginBottom:4}}>REQUEST FIELD TIME</div>
@@ -512,10 +512,24 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
         </div>
       )}
 
+      {/* ↓ KEY FIX #2: bottom nav with prominent REQUEST button */}
       <div className="bottom-nav">
-        <button className={`nav-item ${tab==="calendar"?"active":""}`} onClick={()=>setTab("calendar")}><span className="nav-icon">📅</span>SCHEDULE</button>
         <button className={`nav-item ${tab==="week"    ?"active":""}`} onClick={()=>setTab("week")}    ><span className="nav-icon">📊</span>WEEKLY</button>
-        <button className={`nav-item ${tab==="request" ?"active":""}`} onClick={()=>setTab("request")} ><span className="nav-icon">➕</span>REQUEST</button>
+        <button className={`nav-item ${tab==="calendar"?"active":""}`} onClick={()=>setTab("calendar")}><span className="nav-icon">📅</span>SCHEDULE</button>
+        {/* REQUEST button: always green with pill background to stand out as primary CTA */}
+        <button
+          onClick={()=>setTab("request")}
+          style={{
+            flex:1, display:"flex", flexDirection:"column", alignItems:"center",
+            padding:"8px 0 10px", gap:3, cursor:"pointer", border:"none",
+            background: tab==="request" ? "rgba(0,200,122,0.25)" : "rgba(0,200,122,0.15)",
+            color:"#00C87A",
+            fontFamily:"'DM Sans',sans-serif", fontSize:9, fontWeight:700, letterSpacing:0.3,
+            transition:"all 0.15s",
+          }}>
+          <span style={{fontSize:20}}>➕</span>
+          REQUEST
+        </button>
       </div>
     </div>
   );
@@ -717,8 +731,8 @@ const css = `
   .topbar-btn { background: rgba(255,255,255,0.08); border: none; color: #F8FAFC; font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
   .topbar-btn:hover { background: rgba(255,255,255,0.14); }
   .screen { padding: 16px 8px; padding-bottom: 100px; }
-  .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: #0D2545; border-top: 1px solid rgba(255,255,255,0.08); display: flex; z-index: 200; }
-  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0 12px; gap: 3px; cursor: pointer; border: none; background: none; color: rgba(255,255,255,0.35); font-family: 'DM Sans', sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 0.3px; transition: color 0.15s; }
+  .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: #0D2545; border-top: 1px solid rgba(255,255,255,0.08); display: flex; z-index: 200; overflow: hidden; }
+  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0 12px; gap: 3px; cursor: pointer; border: none; background: none; color: rgba(255,255,255,0.45); font-family: 'DM Sans', sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 0.3px; transition: color 0.15s; }
   .nav-item.active { color: #00C87A; }
   .nav-icon { font-size: 18px; }
   .card { background: #112B50; border-radius: 16px; padding: 14px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.06); }
