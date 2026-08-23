@@ -20,8 +20,7 @@ function fromDB(r) {
   return {
     id: r.id, team: r.team, field: r.field, date: r.date,
     start: r.start_time, end: r.end_time, status: r.status,
-    note: r.note || "",
-    createdAt: r.created_at || null
+    note: r.note || "", createdAt: r.created_at || null
   };
 }
 function toDB(r) {
@@ -49,14 +48,12 @@ const FIELD_COLORS = {
   "U8/U9 Field": { light: "#EFF6FF", text: "#1D4ED8" },
   "Pomponio":    { light: "#FFFBEB", text: "#B45309" },
 };
-const FIELD_CAPACITY = {
-  "WRAC":        4,
-  "U8/U9 Field": 3,
-  "Pomponio":    4,
-};
+const FIELD_CAPACITY = { "WRAC": 4, "U8/U9 Field": 3, "Pomponio": 4 };
 const MAX_TEAMS  = 4;
 const TIME_SLOTS = ["3:00 PM","3:30 PM","4:00 PM","4:30 PM","5:00 PM","5:30 PM","6:00 PM","6:30 PM","7:00 PM","7:30 PM","8:00 PM","8:30 PM","9:00 PM"];
-const DAYS_SHORT = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
+
+// ↓ KEY FIX: 2-letter day names so all 7 fit on any phone screen
+const DAYS_SHORT = ["Su","Mo","Tu","We","Th","Fr","Sa"];
 const MONTHS     = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const ADMIN      = { email: "admin@soccer.com", password: "admin123" };
 
@@ -92,10 +89,7 @@ function getWeekStart(d) {
 function fmtTimestamp(ts) {
   if (!ts) return "";
   const d = new Date(ts);
-  return "Submitted " +
-    d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) +
-    " at " +
-    d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return "Submitted " + d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " at " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 function exportCSV(requests, startDate, endDate) {
   const filtered = requests
@@ -105,15 +99,15 @@ function exportCSV(requests, startDate, endDate) {
   const dayName = d => new Date(d + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" });
   const shortDt = d => new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" });
   const rows = [
-    ["Date", "Day", "Field", "Team", "Start Time", "End Time", "Status", "Submitted"],
+    ["Date","Day","Field","Team","Start Time","End Time","Status","Submitted"],
     ...filtered.map(r => [shortDt(r.date), dayName(r.date), r.field, r.team, r.start, r.end, "Approved", r.createdAt ? fmtTimestamp(r.createdAt) : ""])
   ];
   const csv  = rows.map(row => row.map(c => `"${c}"`).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement("a");
-  const from = new Date(startDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }).replace(/ /g, "_");
-  const to   = new Date(endDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }).replace(/ /g, "_");
+  const from = new Date(startDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }).replace(/ /g,"_");
+  const to   = new Date(endDate   + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }).replace(/ /g,"_");
   a.href = url; a.download = `Strikers_Schedule_${from}_to_${to}.csv`; a.click();
   URL.revokeObjectURL(url);
   return filtered.length;
@@ -121,19 +115,28 @@ function exportCSV(requests, startDate, endDate) {
 
 // ── Shared atoms ──────────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
-  const map = { pending: ["🟡","pending"], approved: ["✅","approved"], denied: ["❌","denied"] };
+  const map = { pending:["🟡","pending"], approved:["✅","approved"], denied:["❌","denied"] };
   const [icon, cls] = map[status] || ["",""];
   return <span className={`badge badge-${cls}`}>{icon} {status.toUpperCase()}</span>;
 }
 function FieldPill({ field }) {
-  const c = FIELD_COLORS[field] || { light: "#eee", text: "#333" };
-  return <span className="field-pill" style={{ background: c.light, color: c.text }}>{field}</span>;
+  const c = FIELD_COLORS[field] || { light:"#eee", text:"#333" };
+  return <span className="field-pill" style={{ background:c.light, color:c.text }}>{field}</span>;
 }
 function FieldLegend() {
-  return <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>{FIELDS.map(f => <FieldPill key={f} field={f} />)}</div>;
+  return <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:16 }}>{FIELDS.map(f => <FieldPill key={f} field={f}/>)}</div>;
 }
 function Spinner() {
-  return <div style={{ textAlign: "center", padding: "60px 0", color: "rgba(255,255,255,0.3)", fontSize: 14 }}>Loading…</div>;
+  return <div style={{ textAlign:"center", padding:"60px 0", color:"rgba(255,255,255,0.3)", fontSize:14 }}>Loading…</div>;
+}
+function SectionDivider({ title }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:12, margin:"28px 0 16px" }}>
+      <div style={{ flex:1, height:1, background:"rgba(255,255,255,0.08)" }}/>
+      <div style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:22, letterSpacing:2, color:"#F8FAFC" }}>{title}</div>
+      <div style={{ flex:1, height:1, background:"rgba(255,255,255,0.08)" }}/>
+    </div>
+  );
 }
 
 // ── Calendar month widget ─────────────────────────────────────────────────────
@@ -146,59 +149,74 @@ function CalMonth({ requests, filterStatus, showActions, onApprove, onDeny, onCa
   const vis  = filterStatus ? requests.filter(r => filterStatus.includes(r.status)) : requests;
   const evForDay = day => {
     const d = fmt(new Date(cy, cm, day));
-    return vis.filter(r => r.date === d).sort((a, b) => a.start.localeCompare(b.start));
+    return vis.filter(r => r.date === d).sort((a,b) => a.start.localeCompare(b.start));
   };
-  const prev = () => { if (cm === 0) { setCm(11); setCy(y => y - 1); } else setCm(m => m - 1); };
-  const next = () => { if (cm === 11) { setCm(0); setCy(y => y + 1); } else setCm(m => m + 1); };
+  const prev = () => { if (cm===0){setCm(11);setCy(y=>y-1);}else setCm(m=>m-1); };
+  const next = () => { if (cm===11){setCm(0);setCy(y=>y+1);}else setCm(m=>m+1); };
 
   return (
     <>
-      <div className="card">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-          <button onClick={prev} style={{ background: "none", border: "none", color: "#F8FAFC", fontSize: 22, cursor: "pointer", padding: "0 8px" }}>‹</button>
-          <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, letterSpacing: 2 }}>{MONTHS[cm]} {cy}</span>
-          <button onClick={next} style={{ background: "none", border: "none", color: "#F8FAFC", fontSize: 22, cursor: "pointer", padding: "0 8px" }}>›</button>
+      <div className="card" style={{ padding:"12px 8px" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10, padding:"0 4px" }}>
+          <button onClick={prev} style={{ background:"none", border:"none", color:"#F8FAFC", fontSize:22, cursor:"pointer", padding:"0 8px" }}>‹</button>
+          <span style={{ fontFamily:"'Bebas Neue',sans-serif", fontSize:19, letterSpacing:2 }}>{MONTHS[cm]} {cy}</span>
+          <button onClick={next} style={{ background:"none", border:"none", color:"#F8FAFC", fontSize:22, cursor:"pointer", padding:"0 8px" }}>›</button>
         </div>
-        <div className="cal-grid">
-          {DAYS_SHORT.map(d => <div key={d} className="cal-header">{d}</div>)}
+        {/* ↓ KEY FIX: minmax(0,1fr) forces columns to shrink, prevents overflow */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7, minmax(0,1fr))", gap:2 }}>
+          {DAYS_SHORT.map(d => (
+            <div key={d} style={{ textAlign:"center", fontSize:9, color:"rgba(255,255,255,0.45)", fontWeight:700, padding:"3px 0", letterSpacing:0 }}>{d}</div>
+          ))}
           {days.map((day, i) => {
-            if (!day) return <div key={`e${i}`} className="cal-day empty" />;
-            const dStr = fmt(new Date(cy, cm, day));
-            const isSel = sel === day, hasEv = evForDay(day).length > 0;
+            if (!day) return <div key={`e${i}`} style={{ aspectRatio:"1" }} />;
+            const dStr  = fmt(new Date(cy, cm, day));
+            const isSel = sel === day;
+            const hasEv = evForDay(day).length > 0;
             return (
-              <div key={day}
-                className={`cal-day ${dStr === todayStr ? "today" : ""} ${isSel ? "selected" : ""} ${hasEv && !isSel ? "has-events" : ""}`}
-                onClick={() => setSel(sel === day ? null : day)}>{day}</div>
+              <div key={day} onClick={() => setSel(sel===day?null:day)} style={{
+                aspectRatio:"1", display:"flex", flexDirection:"column",
+                alignItems:"center", justifyContent:"center",
+                borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer",
+                position:"relative", transition:"background 0.15s", minWidth:0,
+                background: isSel ? "#00C87A" : dStr===todayStr ? "rgba(0,200,122,0.2)" : "transparent",
+                color: isSel ? "#0B1F3A" : dStr===todayStr ? "#00C87A" : "#F8FAFC",
+              }}>
+                {day}
+                {hasEv && !isSel && (
+                  <div style={{ position:"absolute", bottom:2, width:4, height:4, borderRadius:"50%", background:"#00C87A" }}/>
+                )}
+              </div>
             );
           })}
         </div>
       </div>
+
       {sel && (
         <div className="card">
-          <div className="card-title">{new Date(cy, cm, sel).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</div>
+          <div className="card-title">{new Date(cy,cm,sel).toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</div>
           {evForDay(sel).length === 0
-            ? <div className="empty" style={{ padding: "16px 0" }}><div className="empty-icon">🌿</div><div className="empty-text">No slots this day</div></div>
+            ? <div className="empty" style={{padding:"16px 0"}}><div className="empty-icon">🌿</div><div className="empty-text">No slots this day</div></div>
             : evForDay(sel).map(r => (
               <div key={r.id} className="slot-item">
-                <div style={{ minWidth: 82 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)" }}>{r.start}–{r.end}</div>
-                  <FieldPill field={r.field} />
+                <div style={{ minWidth:80 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.5)" }}>{r.start}–{r.end}</div>
+                  <FieldPill field={r.field}/>
                 </div>
-                <div style={{ flex: 1, paddingLeft: 8 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>{r.team}</div>
-                  <StatusBadge status={r.status} />
+                <div style={{ flex:1, paddingLeft:8 }}>
+                  <div style={{ fontWeight:600, fontSize:13 }}>{r.team}</div>
+                  <StatusBadge status={r.status}/>
                 </div>
                 {showActions && (
-                  <div style={{ display: "flex", gap: 4 }}>
-                    {r.status === "pending" && <>
-                      <button className="btn-secondary btn-approve" style={{ padding: "6px 8px", fontSize: 12 }} onClick={() => onApprove(r.id, r)}>✅</button>
-                      <button className="btn-secondary btn-deny"    style={{ padding: "6px 8px", fontSize: 12 }} onClick={() => onDeny(r.id, r)}>❌</button>
+                  <div style={{ display:"flex", gap:4 }}>
+                    {r.status==="pending" && <>
+                      <button className="btn-secondary btn-approve" style={{padding:"6px 8px",fontSize:12}} onClick={()=>onApprove(r.id,r)}>✅</button>
+                      <button className="btn-secondary btn-deny"    style={{padding:"6px 8px",fontSize:12}} onClick={()=>onDeny(r.id,r)}>❌</button>
                     </>}
-                    {r.status === "approved" && <button className="btn-secondary btn-muted" style={{ padding: "6px 8px", fontSize: 12 }} onClick={() => onCancel(r.id, r)}>Cancel</button>}
+                    {r.status==="approved" && <button className="btn-secondary btn-muted" style={{padding:"6px 8px",fontSize:12}} onClick={()=>onCancel(r.id,r)}>Cancel</button>}
                   </div>
                 )}
-                {!showActions && r.status === "pending" && onCoachCancel && (
-                  <button className="btn-secondary btn-cancel-req" style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => onCoachCancel(r)}>Cancel</button>
+                {!showActions && r.status==="pending" && onCoachCancel && (
+                  <button className="btn-secondary btn-cancel-req" style={{padding:"6px 10px",fontSize:12}} onClick={()=>onCoachCancel(r)}>Cancel</button>
                 )}
               </div>
             ))
@@ -212,98 +230,78 @@ function CalMonth({ requests, filterStatus, showActions, onApprove, onDeny, onCa
 // ── Weekly View ───────────────────────────────────────────────────────────────
 function WeeklyView({ requests }) {
   const [weekStart, setWeekStart] = useState(getWeekStart(today));
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const weekDays = Array.from({length:7},(_,i)=>addDays(weekStart,i));
   const todayStr = fmt(today);
-  const fmtShort = d => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const visible  = requests.filter(r => r.status === "approved" || r.status === "pending");
-  const totalForDay = day => visible.filter(r => r.date === fmt(day)).length;
+  const fmtShort = d => d.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+  const visible  = requests.filter(r => r.status==="approved"||r.status==="pending");
+  const totalForDay = day => visible.filter(r=>r.date===fmt(day)).length;
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-        <button onClick={() => setWeekStart(d => addDays(d, -7))}
-          style={{ background: "none", border: "none", color: "#F8FAFC", fontSize: 24, cursor: "pointer", padding: "0 8px" }}>‹</button>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 18, letterSpacing: 2 }}>
-            {fmtShort(weekStart)} – {fmtShort(weekDays[6])}
-          </div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+        <button onClick={()=>setWeekStart(d=>addDays(d,-7))} style={{background:"none",border:"none",color:"#F8FAFC",fontSize:24,cursor:"pointer",padding:"0 8px"}}>‹</button>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:18,letterSpacing:2}}>{fmtShort(weekStart)} – {fmtShort(weekDays[6])}</div>
         </div>
-        <button onClick={() => setWeekStart(d => addDays(d, 7))}
-          style={{ background: "none", border: "none", color: "#F8FAFC", fontSize: 24, cursor: "pointer", padding: "0 8px" }}>›</button>
+        <button onClick={()=>setWeekStart(d=>addDays(d,7))} style={{background:"none",border:"none",color:"#F8FAFC",fontSize:24,cursor:"pointer",padding:"0 8px"}}>›</button>
       </div>
-      <div style={{ textAlign: "center", marginBottom: 16 }}>
-        <button onClick={() => setWeekStart(getWeekStart(today))}
-          style={{ padding: "6px 18px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)", fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+      <div style={{textAlign:"center",marginBottom:16}}>
+        <button onClick={()=>setWeekStart(getWeekStart(today))}
+          style={{padding:"6px 18px",borderRadius:8,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.06)",color:"rgba(255,255,255,0.7)",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,cursor:"pointer"}}>
           This Week
         </button>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 16 }}>
-        {weekDays.map(day => {
-          const count  = totalForDay(day);
-          const dStr   = fmt(day);
-          const isToday = dStr === todayStr;
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(0,1fr))",gap:4,marginBottom:16}}>
+        {weekDays.map(day=>{
+          const count=totalForDay(day), dStr=fmt(day), isToday=dStr===todayStr;
           return (
-            <div key={dStr} style={{
-              background: isToday ? "rgba(0,200,122,0.15)" : "rgba(255,255,255,0.04)",
-              borderRadius: 8, padding: "8px 2px", textAlign: "center",
-              border: isToday ? "1px solid rgba(0,200,122,0.4)" : "1px solid rgba(255,255,255,0.06)"
-            }}>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontWeight: 700, letterSpacing: 0 }}>
-                {DAYS_SHORT[day.getDay()]}
-              </div>
-              <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, color: count > 0 ? "#00C87A" : "rgba(255,255,255,0.2)", lineHeight: 1.2 }}>
-                {count}
-              </div>
-              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)" }}>slot{count !== 1 ? "s" : ""}</div>
+            <div key={dStr} style={{background:isToday?"rgba(0,200,122,0.15)":"rgba(255,255,255,0.04)",borderRadius:8,padding:"8px 2px",textAlign:"center",border:isToday?"1px solid rgba(0,200,122,0.4)":"1px solid rgba(255,255,255,0.06)"}}>
+              <div style={{fontSize:9,color:"rgba(255,255,255,0.4)",fontWeight:700,letterSpacing:0}}>{DAYS_SHORT[day.getDay()]}</div>
+              <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:20,color:count>0?"#00C87A":"rgba(255,255,255,0.2)",lineHeight:1.2}}>{count}</div>
+              <div style={{fontSize:9,color:"rgba(255,255,255,0.3)"}}>slot{count!==1?"s":""}</div>
             </div>
           );
         })}
       </div>
-      {weekDays.map(day => {
-        const dStr    = fmt(day);
-        const isToday = dStr === todayStr;
-        const dayReqs = visible.filter(r => r.date === dStr);
+      {weekDays.map(day=>{
+        const dStr=fmt(day), isToday=dStr===todayStr;
+        const dayReqs=visible.filter(r=>r.date===dStr);
         return (
-          <div key={dStr} className="card" style={{ borderLeft: isToday ? "3px solid #00C87A" : "3px solid transparent" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: dayReqs.length > 0 ? 14 : 0 }}>
+          <div key={dStr} className="card" style={{borderLeft:isToday?"3px solid #00C87A":"3px solid transparent"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:dayReqs.length>0?14:0}}>
               <div>
-                <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 16, letterSpacing: 1 }}>
-                  {day.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
+                <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:1}}>
+                  {day.toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric"})}
                 </span>
-                {isToday && <span style={{ marginLeft: 8, fontSize: 10, color: "#00C87A", fontWeight: 700, letterSpacing: 1 }}>TODAY</span>}
+                {isToday&&<span style={{marginLeft:8,fontSize:10,color:"#00C87A",fontWeight:700}}>TODAY</span>}
               </div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: dayReqs.length > 0 ? "#00C87A" : "rgba(255,255,255,0.2)" }}>
-                {dayReqs.length} slot{dayReqs.length !== 1 ? "s" : ""}
+              <span style={{fontSize:12,fontWeight:700,color:dayReqs.length>0?"#00C87A":"rgba(255,255,255,0.2)"}}>
+                {dayReqs.length} slot{dayReqs.length!==1?"s":""}
               </span>
             </div>
-            {dayReqs.length === 0
-              ? <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontStyle: "italic" }}>No requests this day</div>
-              : FIELDS.map(field => {
-                const fieldReqs = dayReqs.filter(r => r.field === field).sort((a, b) => a.start.localeCompare(b.start));
-                if (fieldReqs.length === 0) return null;
-                const cap      = FIELD_CAPACITY[field];
-                const pct      = Math.min(fieldReqs.length / cap, 1);
-                const barColor = fieldReqs.length >= cap ? "#EF4444" : fieldReqs.length >= cap - 1 ? "#F59E0B" : "#00C87A";
+            {dayReqs.length===0
+              ?<div style={{fontSize:12,color:"rgba(255,255,255,0.2)",fontStyle:"italic"}}>No requests this day</div>
+              :FIELDS.map(field=>{
+                const fieldReqs=dayReqs.filter(r=>r.field===field).sort((a,b)=>a.start.localeCompare(b.start));
+                if(!fieldReqs.length) return null;
+                const cap=FIELD_CAPACITY[field], pct=Math.min(fieldReqs.length/cap,1);
+                const barColor=fieldReqs.length>=cap?"#EF4444":fieldReqs.length>=cap-1?"#F59E0B":"#00C87A";
                 return (
-                  <div key={field} style={{ marginBottom: 14 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                      <FieldPill field={field} />
-                      <span style={{ fontSize: 12, fontWeight: 700, color: barColor }}>{fieldReqs.length} / {cap}</span>
+                  <div key={field} style={{marginBottom:14}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                      <FieldPill field={field}/>
+                      <span style={{fontSize:12,fontWeight:700,color:barColor}}>{fieldReqs.length} / {cap}</span>
                     </div>
-                    <div style={{ height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden", marginBottom: 8 }}>
-                      <div style={{ height: "100%", width: `${pct * 100}%`, background: barColor, borderRadius: 2, transition: "width 0.3s" }} />
+                    <div style={{height:4,background:"rgba(255,255,255,0.08)",borderRadius:2,overflow:"hidden",marginBottom:8}}>
+                      <div style={{height:"100%",width:`${pct*100}%`,background:barColor,borderRadius:2}}/>
                     </div>
-                    {fieldReqs.map((r, idx) => (
-                      <div key={r.id} style={{
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
-                        padding: "6px 0",
-                        borderBottom: idx < fieldReqs.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none"
-                      }}>
+                    {fieldReqs.map((r,idx)=>(
+                      <div key={r.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 0",borderBottom:idx<fieldReqs.length-1?"1px solid rgba(255,255,255,0.05)":"none"}}>
                         <div>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: "#F8FAFC" }}>{r.team}</span>
-                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginLeft: 8 }}>{r.start}–{r.end}</span>
+                          <span style={{fontSize:13,fontWeight:600}}>{r.team}</span>
+                          <span style={{fontSize:11,color:"rgba(255,255,255,0.4)",marginLeft:8}}>{r.start}–{r.end}</span>
                         </div>
-                        <StatusBadge status={r.status} />
+                        <StatusBadge status={r.status}/>
                       </div>
                     ))}
                   </div>
@@ -319,48 +317,44 @@ function WeeklyView({ requests }) {
 
 // ── Export panel ──────────────────────────────────────────────────────────────
 function ExportPanel({ requests }) {
-  const [startDate, setStartDate] = useState(fmt(today));
-  const [endDate,   setEndDate]   = useState(fmt(addDays(today, 7)));
-  const [exported,  setExported]  = useState(null);
-  const previewCount = requests.filter(r => r.status === "approved" && r.date >= startDate && r.date <= endDate).length;
-  function handleExport() {
-    const count = exportCSV(requests, startDate, endDate);
-    setExported(count === false ? 0 : count);
-    setTimeout(() => setExported(null), 4000);
+  const [startDate,setStartDate]=useState(fmt(today));
+  const [endDate,  setEndDate]  =useState(fmt(addDays(today,7)));
+  const [exported, setExported] =useState(null);
+  const previewCount=requests.filter(r=>r.status==="approved"&&r.date>=startDate&&r.date<=endDate).length;
+  function handleExport(){
+    const count=exportCSV(requests,startDate,endDate);
+    setExported(count===false?0:count);
+    setTimeout(()=>setExported(null),4000);
   }
   return (
     <div className="card">
       <div className="card-title">📤 EXPORT SCHEDULE</div>
-      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 18 }}>Exports approved slots as CSV — opens in Excel or Google Sheets</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 18 }}>
-        <div className="form-group" style={{ marginBottom: 0 }}>
+      <div style={{fontSize:13,color:"rgba(255,255,255,0.5)",marginBottom:18}}>Exports approved slots as CSV — opens in Excel or Google Sheets</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:18}}>
+        <div className="form-group" style={{marginBottom:0}}>
           <label className="form-label">Start Date</label>
-          <input className="form-input" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+          <input className="form-input" type="date" value={startDate} onChange={e=>setStartDate(e.target.value)}/>
         </div>
-        <div className="form-group" style={{ marginBottom: 0 }}>
+        <div className="form-group" style={{marginBottom:0}}>
           <label className="form-label">End Date</label>
-          <input className="form-input" type="date" value={endDate} min={startDate} onChange={e => setEndDate(e.target.value)} />
+          <input className="form-input" type="date" value={endDate} min={startDate} onChange={e=>setEndDate(e.target.value)}/>
         </div>
       </div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
-        {[
-          { label: "This week",  start: fmt(today), end: fmt(addDays(today, 6)) },
-          { label: "Next week",  start: fmt(addDays(today, 7)), end: fmt(addDays(today, 13)) },
-          { label: "This month", start: fmt(today), end: fmt(new Date(today.getFullYear(), today.getMonth() + 1, 0)) },
-        ].map(({ label, start, end }) => (
-          <button key={label} onClick={() => { setStartDate(start); setEndDate(end); }}
-            style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)", fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+      <div style={{display:"flex",gap:8,marginBottom:18,flexWrap:"wrap"}}>
+        {[{label:"This week",start:fmt(today),end:fmt(addDays(today,6))},{label:"Next week",start:fmt(addDays(today,7)),end:fmt(addDays(today,13))},{label:"This month",start:fmt(today),end:fmt(new Date(today.getFullYear(),today.getMonth()+1,0))}].map(({label,start,end})=>(
+          <button key={label} onClick={()=>{setStartDate(start);setEndDate(end);}}
+            style={{padding:"6px 14px",borderRadius:8,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.06)",color:"rgba(255,255,255,0.7)",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,cursor:"pointer"}}>
             {label}
           </button>
         ))}
       </div>
-      <div style={{ padding: "12px 16px", background: "rgba(255,255,255,0.04)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>Approved slots in range</span>
-        <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, letterSpacing: 1, color: previewCount > 0 ? "#00C87A" : "rgba(255,255,255,0.3)" }}>{previewCount}</span>
+      <div style={{padding:"12px 16px",background:"rgba(255,255,255,0.04)",borderRadius:10,border:"1px solid rgba(255,255,255,0.08)",marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <span style={{fontSize:13,color:"rgba(255,255,255,0.5)"}}>Approved slots in range</span>
+        <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:24,letterSpacing:1,color:previewCount>0?"#00C87A":"rgba(255,255,255,0.3)"}}>{previewCount}</span>
       </div>
-      {exported === 0 && <div style={{ color: "#F59E0B", fontSize: 13, marginBottom: 12, textAlign: "center", fontWeight: 600 }}>⚠️ No approved slots in that date range.</div>}
-      {exported > 0 && <div style={{ color: "#00C87A", fontSize: 13, marginBottom: 12, textAlign: "center", fontWeight: 600 }}>✅ {exported} slot{exported > 1 ? "s" : ""} exported!</div>}
-      <button className="btn-primary" onClick={handleExport} disabled={previewCount === 0} style={{ opacity: previewCount === 0 ? 0.4 : 1 }}>📥 DOWNLOAD CSV</button>
+      {exported===0&&<div style={{color:"#F59E0B",fontSize:13,marginBottom:12,textAlign:"center",fontWeight:600}}>⚠️ No approved slots in that date range.</div>}
+      {exported>0&&<div style={{color:"#00C87A",fontSize:13,marginBottom:12,textAlign:"center",fontWeight:600}}>✅ {exported} slot{exported>1?"s":""} exported!</div>}
+      <button className="btn-primary" onClick={handleExport} disabled={previewCount===0} style={{opacity:previewCount===0?0.4:1}}>📥 DOWNLOAD CSV</button>
     </div>
   );
 }
@@ -368,7 +362,7 @@ function ExportPanel({ requests }) {
 // ── Main public + coach view ──────────────────────────────────────────────────
 function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
   const [tab,         setTab]        = useState("calendar");
-  const [form,        setForm]       = useState({ team: "", field: FIELDS[0], date: fmt(addDays(today, 1)), start: "4:00 PM", end: "5:30 PM" });
+  const [form,        setForm]       = useState({team:"",field:FIELDS[0],date:fmt(addDays(today,1)),start:"4:00 PM",end:"5:30 PM"});
   const [submitting,  setSubmitting] = useState(false);
   const [submitted,   setSubmitted]  = useState(false);
   const [formErr,     setFormErr]    = useState("");
@@ -377,17 +371,17 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
 
   async function handleSubmit() {
     if (!form.team.trim())       { setFormErr("Please enter your team name."); return; }
-    if (form.start === form.end) { setFormErr("Start and end time must be different."); return; }
-    const overlapping = countOverlapping(requests, form);
-    if (overlapping >= MAX_TEAMS) { setFormErr(`⚠️ ${form.field} already has ${overlapping} approved teams during that time — the field is full (max ${MAX_TEAMS}). Please choose a different time or field.`); return; }
+    if (form.start===form.end)   { setFormErr("Start and end time must be different."); return; }
+    const overlapping=countOverlapping(requests,form);
+    if (overlapping>=MAX_TEAMS)  { setFormErr(`⚠️ ${form.field} already has ${overlapping} approved teams during that time — the field is full (max ${MAX_TEAMS}). Please choose a different time or field.`); return; }
     setFormErr(""); setSubmitting(true);
     try {
       await onSubmitRequest(form);
       setSubmitted(true);
-      setForm({ team: "", field: FIELDS[0], date: fmt(addDays(today, 1)), start: "4:00 PM", end: "5:30 PM" });
-      setTimeout(() => setSubmitted(false), 3500);
+      setForm({team:"",field:FIELDS[0],date:fmt(addDays(today,1)),start:"4:00 PM",end:"5:30 PM"});
+      setTimeout(()=>setSubmitted(false),3500);
       setTab("calendar");
-    } catch (e) { setFormErr("Something went wrong. Please try again."); }
+    } catch(e){ setFormErr("Something went wrong. Please try again."); }
     finally { setSubmitting(false); }
   }
 
@@ -399,45 +393,42 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
   }
 
   const upcoming = requests
-    .filter(r => (r.status === "approved" || r.status === "pending") && r.date >= fmt(today))
-    .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start))
-    .slice(0, 12);
-  const capCount = form.field && form.date && form.start !== form.end ? countOverlapping(requests, form) : 0;
-  const capColor = capCount >= MAX_TEAMS ? "#EF4444" : capCount >= 3 ? "#F59E0B" : "#00C87A";
+    .filter(r=>(r.status==="approved"||r.status==="pending")&&r.date>=fmt(today))
+    .sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start))
+    .slice(0,12);
+  const capCount = form.field&&form.date&&form.start!==form.end ? countOverlapping(requests,form) : 0;
+  const capColor = capCount>=MAX_TEAMS?"#EF4444":capCount>=3?"#F59E0B":"#00C87A";
 
   return (
     <div>
       <div className="screen">
 
-        {/* ── SCHEDULE tab ── */}
-        {tab === "calendar" && (
+        {tab==="calendar" && (
           <>
             {submitted && <div className="success-banner">✅ Request submitted! Waiting for admin approval.</div>}
-            <div style={{ marginBottom: 12 }}>
-              <div className="section-heading" style={{ marginBottom: 2 }}>FIELD SCHEDULE</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>Approved & pending slots</div>
+            <div style={{marginBottom:12}}>
+              <div className="section-heading" style={{marginBottom:2}}>FIELD SCHEDULE</div>
+              <div style={{fontSize:13,color:"rgba(255,255,255,0.4)"}}>Approved & pending slots</div>
             </div>
-            <FieldLegend />
-            <div style={{ display: "flex", gap: 12, marginBottom: 16, fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
-              <span>✅ Approved</span><span>🟡 Pending approval</span>
+            <FieldLegend/>
+            <div style={{display:"flex",gap:12,marginBottom:16,fontSize:12,color:"rgba(255,255,255,0.5)"}}>
+              <span>✅ Approved</span><span>🟡 Pending</span>
             </div>
-            {loading ? <Spinner /> : <CalMonth requests={requests} filterStatus={["approved","pending"]} onCoachCancel={r => setCancelModal(r)} />}
-            {/* ↓ Fixed: more space above Upcoming Slots */}
-            <div className="section-heading" style={{ marginTop: 24 }}>UPCOMING SLOTS</div>
-            {loading ? <Spinner /> : upcoming.length === 0
+            {loading ? <Spinner/> : <CalMonth requests={requests} filterStatus={["approved","pending"]} onCoachCancel={r=>setCancelModal(r)}/>}
+            {/* ↓ KEY FIX: SectionDivider creates clear visual break before upcoming slots */}
+            <SectionDivider title="UPCOMING SLOTS"/>
+            {loading ? <Spinner/> : upcoming.length===0
               ? <div className="empty"><div className="empty-icon">📭</div><div className="empty-text">No upcoming slots yet</div></div>
-              : upcoming.map(r => (
+              : upcoming.map(r=>(
                 <div key={r.id} className="req-item">
-                  <div className="req-row"><span className="req-name">{r.team}</span><FieldPill field={r.field} /></div>
+                  <div className="req-row"><span className="req-name">{r.team}</span><FieldPill field={r.field}/></div>
                   <div className="req-detail">
-                    {new Date(r.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                    {new Date(r.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}
                     &nbsp;·&nbsp;{r.start} – {r.end}
                   </div>
-                  <div style={{ marginTop: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <StatusBadge status={r.status} />
-                    {r.status === "pending" && (
-                      <button className="btn-secondary btn-cancel-req" style={{ padding: "5px 12px", fontSize: 12 }} onClick={() => setCancelModal(r)}>Cancel</button>
-                    )}
+                  <div style={{marginTop:6,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                    <StatusBadge status={r.status}/>
+                    {r.status==="pending" && <button className="btn-secondary btn-cancel-req" style={{padding:"5px 12px",fontSize:12}} onClick={()=>setCancelModal(r)}>Cancel</button>}
                   </div>
                   {r.createdAt && <div className="timestamp">{fmtTimestamp(r.createdAt)}</div>}
                 </div>
@@ -446,88 +437,75 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
           </>
         )}
 
-        {/* ── WEEKLY tab ── */}
-        {tab === "week" && (
+        {tab==="week" && (
           <>
-            <div style={{ marginBottom: 16 }}>
-              <div className="section-heading" style={{ marginBottom: 2 }}>WEEKLY VIEW</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>All requests by day & field</div>
+            <div style={{marginBottom:16}}>
+              <div className="section-heading" style={{marginBottom:2}}>WEEKLY VIEW</div>
+              <div style={{fontSize:13,color:"rgba(255,255,255,0.4)"}}>All requests by day & field</div>
             </div>
-            {loading ? <Spinner /> : <WeeklyView requests={requests} />}
+            {loading ? <Spinner/> : <WeeklyView requests={requests}/>}
           </>
         )}
 
-        {/* ── REQUEST tab ── */}
-        {tab === "request" && (
+        {tab==="request" && (
           <>
-            <div className="section-heading" style={{ marginBottom: 4 }}>REQUEST FIELD TIME</div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 20 }}>No login needed — enter your team name and submit</div>
+            <div className="section-heading" style={{marginBottom:4}}>REQUEST FIELD TIME</div>
+            <div style={{fontSize:13,color:"rgba(255,255,255,0.4)",marginBottom:20}}>No login needed — enter your team name and submit</div>
             <div className="card">
               <div className="form-group">
                 <label className="form-label">Team Name</label>
-                <input className="form-input" type="text" value={form.team} onChange={e => setForm({ ...form, team: e.target.value })} placeholder="e.g. U8/U9 Boys, U9 Girls…" maxLength={50} />
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>Type your team name exactly as you want it to appear</div>
+                <input className="form-input" type="text" value={form.team} onChange={e=>setForm({...form,team:e.target.value})} placeholder="e.g. U8/U9 Boys, U9 Girls…" maxLength={50}/>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.25)",marginTop:4}}>Type your team name exactly as you want it to appear</div>
               </div>
               <div className="form-group">
                 <label className="form-label">Field</label>
-                <select className="form-select" value={form.field} onChange={e => setForm({ ...form, field: e.target.value })}>
-                  {FIELDS.map(f => <option key={f} value={f}>{f}</option>)}
+                <select className="form-select" value={form.field} onChange={e=>setForm({...form,field:e.target.value})}>
+                  {FIELDS.map(f=><option key={f} value={f}>{f}</option>)}
                 </select>
               </div>
               <div className="form-group">
                 <label className="form-label">Date</label>
-                <input className="form-input" type="date" value={form.date} min={fmt(addDays(today, 1))} onChange={e => setForm({ ...form, date: e.target.value })} />
+                <input className="form-input" type="date" value={form.date} min={fmt(addDays(today,1))} onChange={e=>setForm({...form,date:e.target.value})}/>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div className="form-group">
-                  <label className="form-label">Start</label>
-                  <select className="form-select" value={form.start} onChange={e => setForm({ ...form, start: e.target.value })}>
-                    {TIME_SLOTS.map(t => <option key={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">End</label>
-                  <select className="form-select" value={form.end} onChange={e => setForm({ ...form, end: e.target.value })}>
-                    {TIME_SLOTS.map(t => <option key={t}>{t}</option>)}
-                  </select>
-                </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                <div className="form-group"><label className="form-label">Start</label><select className="form-select" value={form.start} onChange={e=>setForm({...form,start:e.target.value})}>{TIME_SLOTS.map(t=><option key={t}>{t}</option>)}</select></div>
+                <div className="form-group"><label className="form-label">End</label><select className="form-select" value={form.end} onChange={e=>setForm({...form,end:e.target.value})}>{TIME_SLOTS.map(t=><option key={t}>{t}</option>)}</select></div>
               </div>
-              {capCount > 0 && form.start !== form.end && (
-                <div style={{ marginBottom: 18 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 6 }}>
-                    <span style={{ color: "rgba(255,255,255,0.5)" }}>Field capacity for this slot</span>
-                    <span style={{ color: capColor, fontWeight: 700 }}>{capCount} / {MAX_TEAMS} teams</span>
+              {capCount>0&&form.start!==form.end&&(
+                <div style={{marginBottom:18}}>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:6}}>
+                    <span style={{color:"rgba(255,255,255,0.5)"}}>Field capacity for this slot</span>
+                    <span style={{color:capColor,fontWeight:700}}>{capCount} / {MAX_TEAMS} teams</span>
                   </div>
-                  <div style={{ height: 6, background: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${Math.min(capCount / MAX_TEAMS, 1) * 100}%`, background: capColor, borderRadius: 3, transition: "width 0.3s" }} />
+                  <div style={{height:6,background:"rgba(255,255,255,0.08)",borderRadius:3,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:`${Math.min(capCount/MAX_TEAMS,1)*100}%`,background:capColor,borderRadius:3,transition:"width 0.3s"}}/>
                   </div>
-                  {capCount >= MAX_TEAMS && <div style={{ marginTop: 8, fontSize: 12, color: "#EF4444", fontWeight: 600 }}>🔴 Slot is full — please pick a different time or field</div>}
+                  {capCount>=MAX_TEAMS&&<div style={{marginTop:8,fontSize:12,color:"#EF4444",fontWeight:600}}>🔴 Slot is full — please pick a different time or field</div>}
                 </div>
               )}
-              {formErr && <div style={{ color: "#EF4444", fontSize: 13, marginBottom: 12, lineHeight: 1.5 }}>{formErr}</div>}
-              <button className="btn-primary" onClick={handleSubmit} disabled={submitting} style={{ opacity: submitting ? 0.6 : 1 }}>
-                {submitting ? "SUBMITTING…" : "SUBMIT REQUEST"}
+              {formErr&&<div style={{color:"#EF4444",fontSize:13,marginBottom:12,lineHeight:1.5}}>{formErr}</div>}
+              <button className="btn-primary" onClick={handleSubmit} disabled={submitting} style={{opacity:submitting?0.6:1}}>
+                {submitting?"SUBMITTING…":"SUBMIT REQUEST"}
               </button>
             </div>
           </>
         )}
       </div>
 
-      {/* Coach cancel modal */}
       {cancelModal && (
-        <div className="modal-overlay" onClick={() => !cancelling && setCancelModal(null)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-            <div className="modal-handle" />
-            <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, letterSpacing: 2, marginBottom: 4 }}>🗑️ CANCEL REQUEST</div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 20 }}>
-              {cancelModal.team} · {cancelModal.field}<br />
-              {new Date(cancelModal.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · {cancelModal.start}–{cancelModal.end}
+        <div className="modal-overlay" onClick={()=>!cancelling&&setCancelModal(null)}>
+          <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
+            <div className="modal-handle"/>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:2,marginBottom:4}}>🗑️ CANCEL REQUEST</div>
+            <div style={{fontSize:13,color:"rgba(255,255,255,0.5)",marginBottom:20}}>
+              {cancelModal.team} · {cancelModal.field}<br/>
+              {new Date(cancelModal.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})} · {cancelModal.start}–{cancelModal.end}
             </div>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)", marginBottom: 20 }}>Are you sure? This cannot be undone.</div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button className="btn-secondary btn-muted" style={{ flex: 1, padding: 14 }} onClick={() => setCancelModal(null)} disabled={cancelling}>Keep It</button>
-              <button className="btn-secondary btn-deny" style={{ flex: 2, padding: 14, fontWeight: 700, fontSize: 15, opacity: cancelling ? 0.6 : 1 }} onClick={confirmCoachCancel} disabled={cancelling}>
-                {cancelling ? "Cancelling…" : "Yes, Cancel Request"}
+            <div style={{fontSize:14,color:"rgba(255,255,255,0.7)",marginBottom:20}}>Are you sure? This cannot be undone.</div>
+            <div style={{display:"flex",gap:10}}>
+              <button className="btn-secondary btn-muted" style={{flex:1,padding:14}} onClick={()=>setCancelModal(null)} disabled={cancelling}>Keep It</button>
+              <button className="btn-secondary btn-deny" style={{flex:2,padding:14,fontWeight:700,fontSize:15,opacity:cancelling?0.6:1}} onClick={confirmCoachCancel} disabled={cancelling}>
+                {cancelling?"Cancelling…":"Yes, Cancel Request"}
               </button>
             </div>
           </div>
@@ -535,9 +513,9 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
       )}
 
       <div className="bottom-nav">
-        <button className={`nav-item ${tab === "calendar" ? "active" : ""}`} onClick={() => setTab("calendar")}><span className="nav-icon">📅</span>SCHEDULE</button>
-        <button className={`nav-item ${tab === "week"     ? "active" : ""}`} onClick={() => setTab("week")}    ><span className="nav-icon">📊</span>WEEKLY</button>
-        <button className={`nav-item ${tab === "request"  ? "active" : ""}`} onClick={() => setTab("request")} ><span className="nav-icon">➕</span>REQUEST</button>
+        <button className={`nav-item ${tab==="calendar"?"active":""}`} onClick={()=>setTab("calendar")}><span className="nav-icon">📅</span>SCHEDULE</button>
+        <button className={`nav-item ${tab==="week"    ?"active":""}`} onClick={()=>setTab("week")}    ><span className="nav-icon">📊</span>WEEKLY</button>
+        <button className={`nav-item ${tab==="request" ?"active":""}`} onClick={()=>setTab("request")} ><span className="nav-icon">➕</span>REQUEST</button>
       </div>
     </div>
   );
@@ -545,19 +523,19 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
 
 // ── Admin Login ───────────────────────────────────────────────────────────────
 function AdminLogin({ onLogin, onBack }) {
-  const [email, setEmail] = useState(""), [pass, setPass] = useState(""), [err, setErr] = useState("");
-  function go() { if (email === ADMIN.email && pass === ADMIN.password) { onLogin(); return; } setErr("Invalid admin credentials."); }
+  const [email,setEmail]=useState(""), [pass,setPass]=useState(""), [err,setErr]=useState("");
+  function go(){ if(email===ADMIN.email&&pass===ADMIN.password){onLogin();return;} setErr("Invalid admin credentials."); }
   return (
     <div className="login-wrap">
       <div className="login-logo">⚽ FIELDTIME</div>
       <div className="login-sub">Admin Access</div>
       <div className="login-card">
-        {err && <div className="login-error">{err}</div>}
-        <div className="form-group"><label className="form-label">Email</label><input className="form-input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@soccer.com" /></div>
-        <div className="form-group"><label className="form-label">Password</label><input className="form-input" type="password" value={pass} onChange={e => setPass(e.target.value)} placeholder="••••••••" onKeyDown={e => e.key === "Enter" && go()} /></div>
+        {err&&<div className="login-error">{err}</div>}
+        <div className="form-group"><label className="form-label">Email</label><input className="form-input" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="admin@soccer.com"/></div>
+        <div className="form-group"><label className="form-label">Password</label><input className="form-input" type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&go()}/></div>
         <button className="btn-primary" onClick={go}>SIGN IN AS ADMIN</button>
-        <button onClick={onBack} style={{ display: "block", width: "100%", marginTop: 12, background: "none", border: "none", color: "rgba(255,255,255,0.4)", fontFamily: "'DM Sans',sans-serif", fontSize: 14, cursor: "pointer", padding: "8px 0" }}>← Back to Schedule</button>
-        <div className="login-hint"><strong style={{ color: "rgba(255,255,255,0.6)" }}>Admin credentials</strong><br />Set your real email &amp; password in App.jsx line 46</div>
+        <button onClick={onBack} style={{display:"block",width:"100%",marginTop:12,background:"none",border:"none",color:"rgba(255,255,255,0.4)",fontFamily:"'DM Sans',sans-serif",fontSize:14,cursor:"pointer",padding:"8px 0"}}>← Back to Schedule</button>
+        <div className="login-hint"><strong style={{color:"rgba(255,255,255,0.6)"}}>Admin credentials</strong><br/>Set your real email &amp; password in App.jsx line 46</div>
       </div>
     </div>
   );
@@ -565,114 +543,112 @@ function AdminLogin({ onLogin, onBack }) {
 
 // ── Admin Dashboard ───────────────────────────────────────────────────────────
 function AdminDashboard({ requests, loading, onApprove, onDeny, onCancel, onLogout }) {
-  const [tab,    setTab]   = useState("queue");
-  const [modal,  setModal] = useState(null);
-  const [note,   setNote]  = useState("");
-  const [saving, setSaving]= useState(false);
+  const [tab,   setTab]  =useState("queue");
+  const [modal, setModal]=useState(null);
+  const [note,  setNote] =useState("");
+  const [saving,setSaving]=useState(false);
 
-  const pending  = requests.filter(r => r.status === "pending");
-  const approved = requests.filter(r => r.status === "approved");
-  const all      = [...requests].sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
-  const wouldOverfill = req => countOverlapping(requests, req) >= MAX_TEAMS;
+  const pending =requests.filter(r=>r.status==="pending");
+  const approved=requests.filter(r=>r.status==="approved");
+  const all     =[...requests].sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
+  const wouldOverfill=req=>countOverlapping(requests,req)>=MAX_TEAMS;
 
-  async function confirmAction() {
-    if (!modal) return;
+  async function confirmAction(){
+    if(!modal) return;
     setSaving(true);
     try {
-      if (modal.action === "approve") await onApprove(modal.id);
-      if (modal.action === "deny")    await onDeny(modal.id, note);
-      if (modal.action === "cancel")  await onCancel(modal.id, note);
+      if(modal.action==="approve") await onApprove(modal.id);
+      if(modal.action==="deny")    await onDeny(modal.id,note);
+      if(modal.action==="cancel")  await onCancel(modal.id,note);
     } finally { setSaving(false); setModal(null); setNote(""); }
   }
 
   return (
     <div>
       <div className="screen">
-        <div style={{ marginBottom: 20 }}>
-          <div className="section-heading" style={{ marginBottom: 2 }}>ADMIN PANEL</div>
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>Field Schedule Manager</div>
+        <div style={{marginBottom:20}}>
+          <div className="section-heading" style={{marginBottom:2}}>ADMIN PANEL</div>
+          <div style={{fontSize:13,color:"rgba(255,255,255,0.4)"}}>Field Schedule Manager</div>
         </div>
         <div className="stats-row">
-          <div className="stat-box"><div className="stat-num pulse" style={{ color: "#F59E0B" }}>{pending.length}</div><div className="stat-label">Pending</div></div>
-          <div className="stat-box"><div className="stat-num" style={{ color: "#00C87A" }}>{approved.length}</div><div className="stat-label">Approved</div></div>
-          <div className="stat-box"><div className="stat-num" style={{ color: "rgba(255,255,255,0.5)" }}>{requests.length}</div><div className="stat-label">Total</div></div>
+          <div className="stat-box"><div className="stat-num pulse" style={{color:"#F59E0B"}}>{pending.length}</div><div className="stat-label">Pending</div></div>
+          <div className="stat-box"><div className="stat-num" style={{color:"#00C87A"}}>{approved.length}</div><div className="stat-label">Approved</div></div>
+          <div className="stat-box"><div className="stat-num" style={{color:"rgba(255,255,255,0.5)"}}>{requests.length}</div><div className="stat-label">Total</div></div>
         </div>
-        <div style={{ display: "flex", gap: 6, marginBottom: 20, overflowX: "auto", paddingBottom: 2 }}>
-          {[["queue",`Queue (${pending.length})`],["week","Weekly"],["calendar","Calendar"],["all","All"],["export","Export"]].map(([k,l]) => (
-            <button key={k} onClick={() => setTab(k)} style={{
-              flex: "0 0 auto", padding: "10px 14px", borderRadius: 10, border: "none",
-              fontFamily: "'DM Sans',sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer",
-              background: tab === k ? "#00C87A" : "rgba(255,255,255,0.07)",
-              color: tab === k ? "#0B1F3A" : "rgba(255,255,255,0.6)",
-              transition: "all 0.15s", whiteSpace: "nowrap"
+        <div style={{display:"flex",gap:6,marginBottom:20,overflowX:"auto",paddingBottom:2}}>
+          {[["queue",`Queue (${pending.length})`],["week","Weekly"],["calendar","Calendar"],["all","All"],["export","Export"]].map(([k,l])=>(
+            <button key={k} onClick={()=>setTab(k)} style={{
+              flex:"0 0 auto",padding:"10px 14px",borderRadius:10,border:"none",
+              fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",
+              background:tab===k?"#00C87A":"rgba(255,255,255,0.07)",
+              color:tab===k?"#0B1F3A":"rgba(255,255,255,0.6)",
+              transition:"all 0.15s",whiteSpace:"nowrap"
             }}>{l}</button>
           ))}
         </div>
 
-        {tab === "queue" && (loading ? <Spinner /> :
-          pending.length === 0
-            ? <div className="empty"><div className="empty-icon">🎉</div><div className="empty-text">All caught up! No pending requests.</div></div>
-            : pending.map(r => {
-              const full = wouldOverfill(r);
-              return (
+        {tab==="queue"&&(loading?<Spinner/>:
+          pending.length===0
+            ?<div className="empty"><div className="empty-icon">🎉</div><div className="empty-text">All caught up! No pending requests.</div></div>
+            :pending.map(r=>{
+              const full=wouldOverfill(r);
+              return(
                 <div key={r.id} className="req-item">
-                  <div className="req-row"><span className="req-name">{r.team}</span><FieldPill field={r.field} /></div>
-                  <div className="req-detail" style={{ marginTop: 4 }}>
-                    {new Date(r.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                  <div className="req-row"><span className="req-name">{r.team}</span><FieldPill field={r.field}/></div>
+                  <div className="req-detail" style={{marginTop:4}}>
+                    {new Date(r.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}
                     &nbsp;·&nbsp;{r.start} – {r.end}
                   </div>
-                  {r.createdAt && <div className="timestamp">{fmtTimestamp(r.createdAt)}</div>}
-                  {full && <div style={{ marginTop: 8, padding: "8px 10px", background: "rgba(239,68,68,0.12)", borderRadius: 8, fontSize: 12, color: "#EF4444", fontWeight: 600 }}>⚠️ Field already has {MAX_TEAMS} teams in this slot</div>}
-                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                    <button className="btn-secondary btn-approve" onClick={() => setModal({ id: r.id, action: "approve", req: r })}>✅ Approve</button>
-                    <button className="btn-secondary btn-deny"    onClick={() => setModal({ id: r.id, action: "deny",    req: r })}>❌ Deny</button>
+                  {r.createdAt&&<div className="timestamp">{fmtTimestamp(r.createdAt)}</div>}
+                  {full&&<div style={{marginTop:8,padding:"8px 10px",background:"rgba(239,68,68,0.12)",borderRadius:8,fontSize:12,color:"#EF4444",fontWeight:600}}>⚠️ Field already has {MAX_TEAMS} teams in this slot</div>}
+                  <div style={{display:"flex",gap:8,marginTop:12}}>
+                    <button className="btn-secondary btn-approve" onClick={()=>setModal({id:r.id,action:"approve",req:r})}>✅ Approve</button>
+                    <button className="btn-secondary btn-deny"    onClick={()=>setModal({id:r.id,action:"deny",   req:r})}>❌ Deny</button>
                   </div>
                 </div>
               );
             })
         )}
 
-        {tab === "week" && (
+        {tab==="week"&&(
           <>
-            <div style={{ marginBottom: 16 }}>
-              <div className="section-heading" style={{ marginBottom: 2 }}>WEEKLY VIEW</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>All requests by day & field</div>
+            <div style={{marginBottom:16}}>
+              <div className="section-heading" style={{marginBottom:2}}>WEEKLY VIEW</div>
+              <div style={{fontSize:13,color:"rgba(255,255,255,0.4)"}}>All requests by day & field</div>
             </div>
-            {loading ? <Spinner /> : <WeeklyView requests={requests} />}
+            {loading?<Spinner/>:<WeeklyView requests={requests}/>}
           </>
         )}
 
-        {tab === "calendar" && (loading ? <Spinner /> : (
-          <><FieldLegend /><CalMonth requests={requests} showActions
-            onApprove={(id, req) => setModal({ id, action: "approve", req })}
-            onDeny={(id,    req) => setModal({ id, action: "deny",    req })}
-            onCancel={(id,  req) => setModal({ id, action: "cancel",  req })}
+        {tab==="calendar"&&(loading?<Spinner/>:(
+          <><FieldLegend/><CalMonth requests={requests} showActions
+            onApprove={(id,req)=>setModal({id,action:"approve",req})}
+            onDeny={(id,req)=>setModal({id,action:"deny",req})}
+            onCancel={(id,req)=>setModal({id,action:"cancel",req})}
           /></>
         ))}
 
-        {tab === "all" && (loading ? <Spinner /> :
-          ["pending","approved","denied"].map(status => {
-            const group = all.filter(r => r.status === status);
-            if (!group.length) return null;
-            return (
+        {tab==="all"&&(loading?<Spinner/>:
+          ["pending","approved","denied"].map(status=>{
+            const group=all.filter(r=>r.status===status);
+            if(!group.length) return null;
+            return(
               <div key={status}>
-                <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 16, letterSpacing: 2, color: "rgba(255,255,255,0.4)", marginBottom: 8, marginTop: 4 }}>
-                  {status.toUpperCase()} ({group.length})
-                </div>
-                {group.map(r => (
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,letterSpacing:2,color:"rgba(255,255,255,0.4)",marginBottom:8,marginTop:4}}>{status.toUpperCase()} ({group.length})</div>
+                {group.map(r=>(
                   <div key={r.id} className="req-item">
-                    <div className="req-row"><span style={{ fontWeight: 700 }}>{r.team}</span><FieldPill field={r.field} /></div>
-                    <div className="req-detail" style={{ marginTop: 4 }}>
-                      {new Date(r.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                    <div className="req-row"><span style={{fontWeight:700}}>{r.team}</span><FieldPill field={r.field}/></div>
+                    <div className="req-detail" style={{marginTop:4}}>
+                      {new Date(r.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}
                       &nbsp;·&nbsp;{r.start}–{r.end}
                     </div>
-                    {r.createdAt && <div className="timestamp">{fmtTimestamp(r.createdAt)}</div>}
-                    {r.note && <div style={{ marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Note: {r.note}</div>}
-                    {status === "approved" && <button className="btn-secondary btn-muted" style={{ marginTop: 10, width: "100%" }} onClick={() => setModal({ id: r.id, action: "cancel", req: r })}>Override / Cancel Slot</button>}
-                    {status === "pending" && (
-                      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                        <button className="btn-secondary btn-approve" onClick={() => setModal({ id: r.id, action: "approve", req: r })}>✅ Approve</button>
-                        <button className="btn-secondary btn-deny"    onClick={() => setModal({ id: r.id, action: "deny",    req: r })}>❌ Deny</button>
+                    {r.createdAt&&<div className="timestamp">{fmtTimestamp(r.createdAt)}</div>}
+                    {r.note&&<div style={{marginTop:6,fontSize:12,color:"rgba(255,255,255,0.4)"}}>Note: {r.note}</div>}
+                    {status==="approved"&&<button className="btn-secondary btn-muted" style={{marginTop:10,width:"100%"}} onClick={()=>setModal({id:r.id,action:"cancel",req:r})}>Override / Cancel Slot</button>}
+                    {status==="pending"&&(
+                      <div style={{display:"flex",gap:8,marginTop:10}}>
+                        <button className="btn-secondary btn-approve" onClick={()=>setModal({id:r.id,action:"approve",req:r})}>✅ Approve</button>
+                        <button className="btn-secondary btn-deny"    onClick={()=>setModal({id:r.id,action:"deny",   req:r})}>❌ Deny</button>
                       </div>
                     )}
                   </div>
@@ -682,37 +658,37 @@ function AdminDashboard({ requests, loading, onApprove, onDeny, onCancel, onLogo
           })
         )}
 
-        {tab === "export" && <ExportPanel requests={requests} />}
+        {tab==="export"&&<ExportPanel requests={requests}/>}
       </div>
 
-      {modal && (
-        <div className="modal-overlay" onClick={() => !saving && setModal(null)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-            <div className="modal-handle" />
-            <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, letterSpacing: 2, marginBottom: 4 }}>
-              {modal.action === "approve" ? "✅ APPROVE REQUEST" : modal.action === "deny" ? "❌ DENY REQUEST" : "🚫 CANCEL SLOT"}
+      {modal&&(
+        <div className="modal-overlay" onClick={()=>!saving&&setModal(null)}>
+          <div className="modal-sheet" onClick={e=>e.stopPropagation()}>
+            <div className="modal-handle"/>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,letterSpacing:2,marginBottom:4}}>
+              {modal.action==="approve"?"✅ APPROVE REQUEST":modal.action==="deny"?"❌ DENY REQUEST":"🚫 CANCEL SLOT"}
             </div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 16 }}>
-              {modal.req.team} · {modal.req.field}<br />
-              {new Date(modal.req.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · {modal.req.start}–{modal.req.end}
+            <div style={{fontSize:13,color:"rgba(255,255,255,0.5)",marginBottom:16}}>
+              {modal.req.team} · {modal.req.field}<br/>
+              {new Date(modal.req.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})} · {modal.req.start}–{modal.req.end}
             </div>
-            {modal.action === "approve" && wouldOverfill(modal.req) && (
-              <div style={{ marginBottom: 14, padding: "10px 12px", background: "rgba(239,68,68,0.12)", borderRadius: 10, fontSize: 13, color: "#EF4444", fontWeight: 600 }}>
+            {modal.action==="approve"&&wouldOverfill(modal.req)&&(
+              <div style={{marginBottom:14,padding:"10px 12px",background:"rgba(239,68,68,0.12)",borderRadius:10,fontSize:13,color:"#EF4444",fontWeight:600}}>
                 ⚠️ Slot already has {MAX_TEAMS} approved teams. You can still override and approve.
               </div>
             )}
-            {modal.action !== "approve" && (
+            {modal.action!=="approve"&&(
               <div className="form-group">
                 <label className="form-label">Message back to coach (optional)</label>
-                <input className="form-input" value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. Field unavailable that day…" />
+                <input className="form-input" value={note} onChange={e=>setNote(e.target.value)} placeholder="e.g. Field unavailable that day…"/>
               </div>
             )}
-            <div style={{ display: "flex", gap: 10 }}>
-              <button className="btn-secondary btn-muted" style={{ flex: 1, padding: 14 }} onClick={() => setModal(null)} disabled={saving}>Back</button>
-              <button className={`btn-secondary ${modal.action === "approve" ? "btn-approve" : "btn-deny"}`}
-                style={{ flex: 2, padding: 14, fontWeight: 700, fontSize: 15, opacity: saving ? 0.6 : 1 }}
+            <div style={{display:"flex",gap:10}}>
+              <button className="btn-secondary btn-muted" style={{flex:1,padding:14}} onClick={()=>setModal(null)} disabled={saving}>Back</button>
+              <button className={`btn-secondary ${modal.action==="approve"?"btn-approve":"btn-deny"}`}
+                style={{flex:2,padding:14,fontWeight:700,fontSize:15,opacity:saving?0.6:1}}
                 onClick={confirmAction} disabled={saving}>
-                {saving ? "Saving…" : modal.action === "approve" ? "Confirm Approval" : modal.action === "deny" ? "Confirm Denial" : "Confirm Cancel"}
+                {saving?"Saving…":modal.action==="approve"?"Confirm Approval":modal.action==="deny"?"Confirm Denial":"Confirm Cancel"}
               </button>
             </div>
           </div>
@@ -720,11 +696,11 @@ function AdminDashboard({ requests, loading, onApprove, onDeny, onCancel, onLogo
       )}
 
       <div className="bottom-nav">
-        <button className={`nav-item ${tab === "queue"    ? "active" : ""}`} onClick={() => setTab("queue")}   ><span className="nav-icon">📥</span>QUEUE</button>
-        <button className={`nav-item ${tab === "week"     ? "active" : ""}`} onClick={() => setTab("week")}    ><span className="nav-icon">📊</span>WEEKLY</button>
-        <button className={`nav-item ${tab === "calendar" ? "active" : ""}`} onClick={() => setTab("calendar")}><span className="nav-icon">📅</span>CAL</button>
-        <button className={`nav-item ${tab === "all"      ? "active" : ""}`} onClick={() => setTab("all")}     ><span className="nav-icon">📋</span>ALL</button>
-        <button className={`nav-item ${tab === "export"   ? "active" : ""}`} onClick={() => setTab("export")}  ><span className="nav-icon">📤</span>EXPORT</button>
+        <button className={`nav-item ${tab==="queue"   ?"active":""}`} onClick={()=>setTab("queue")}   ><span className="nav-icon">📥</span>QUEUE</button>
+        <button className={`nav-item ${tab==="week"    ?"active":""}`} onClick={()=>setTab("week")}    ><span className="nav-icon">📊</span>WEEKLY</button>
+        <button className={`nav-item ${tab==="calendar"?"active":""}`} onClick={()=>setTab("calendar")}><span className="nav-icon">📅</span>CAL</button>
+        <button className={`nav-item ${tab==="all"     ?"active":""}`} onClick={()=>setTab("all")}     ><span className="nav-icon">📋</span>ALL</button>
+        <button className={`nav-item ${tab==="export"  ?"active":""}`} onClick={()=>setTab("export")}  ><span className="nav-icon">📤</span>EXPORT</button>
       </div>
     </div>
   );
@@ -740,16 +716,11 @@ const css = `
   .topbar-sub { font-size: 11px; color: rgba(255,255,255,0.4); letter-spacing: 1px; text-transform: uppercase; margin-top: 1px; }
   .topbar-btn { background: rgba(255,255,255,0.08); border: none; color: #F8FAFC; font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
   .topbar-btn:hover { background: rgba(255,255,255,0.14); }
-
-  /* ↓ Fix 1: reduced side padding so calendar has full width */
-  .screen { padding: 16px 10px; padding-bottom: 100px; }
-
+  .screen { padding: 16px 8px; padding-bottom: 100px; }
   .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: #0D2545; border-top: 1px solid rgba(255,255,255,0.08); display: flex; z-index: 200; }
   .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0 12px; gap: 3px; cursor: pointer; border: none; background: none; color: rgba(255,255,255,0.35); font-family: 'DM Sans', sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 0.3px; transition: color 0.15s; }
   .nav-item.active { color: #00C87A; }
   .nav-icon { font-size: 18px; }
-
-  /* ↓ Fix 4: tighter card padding */
   .card { background: #112B50; border-radius: 16px; padding: 14px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.06); }
   .card-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; margin-bottom: 14px; }
   .badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; }
@@ -757,24 +728,12 @@ const css = `
   .badge-approved { background: rgba(0,200,122,0.15);  color: #00C87A; }
   .badge-denied   { background: rgba(239,68,68,0.15);  color: #EF4444; }
   .field-pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
-
-  /* ↓ Fix 2: tighter calendar cell gap */
-  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-
-  /* ↓ Fix 3: smaller day headers so Fri/Sat don't get cut off */
-  .cal-header { text-align: center; font-size: 9px; color: rgba(255,255,255,0.4); font-weight: 700; padding: 4px 0; letter-spacing: 0; }
-
-  .cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; position: relative; transition: background 0.15s; }
-  .cal-day.today { background: rgba(0,200,122,0.2); color: #00C87A; }
-  .cal-day.has-events::after { content: ''; position: absolute; bottom: 4px; width: 5px; height: 5px; border-radius: 50%; background: #00C87A; }
-  .cal-day.selected { background: #00C87A; color: #0B1F3A; }
-  .cal-day:hover:not(.selected) { background: rgba(255,255,255,0.06); }
-  .cal-day.empty { opacity: 0; pointer-events: none; }
   .req-item { padding: 14px; background: rgba(255,255,255,0.04); border-radius: 12px; margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.06); }
   .req-row { display: flex; align-items: center; justify-content: space-between; }
   .req-name { font-weight: 700; font-size: 15px; }
   .req-detail { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 4px; }
   .timestamp { font-size: 11px; color: rgba(255,255,255,0.25); margin-top: 5px; font-style: italic; }
+  .slot-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
   .form-label { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 6px; display: block; }
   .form-group { margin-bottom: 18px; }
   .form-input, .form-select { width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #F8FAFC; font-family: 'DM Sans', sans-serif; font-size: 15px; padding: 12px 14px; outline: none; transition: border 0.15s; }
@@ -795,12 +754,11 @@ const css = `
   .btn-cancel-req { background: rgba(239,68,68,0.12); color: #EF4444; border: none; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-weight: 700; cursor: pointer; }
   .btn-cancel-req:hover { background: rgba(239,68,68,0.22); }
   .section-heading { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 2px; margin-bottom: 16px; }
-  .slot-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
-  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+  .stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 16px; }
   .stat-box { background: rgba(255,255,255,0.04); border-radius: 12px; padding: 14px 10px; text-align: center; border: 1px solid rgba(255,255,255,0.06); }
   .stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 28px; line-height: 1; }
   .stat-label { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 4px; letter-spacing: 0.5px; }
-  @keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.5 } }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
   .pulse { animation: pulse 2s ease-in-out infinite; }
   .empty { text-align: center; padding: 40px 20px; color: rgba(255,255,255,0.25); }
   .empty-icon { font-size: 40px; margin-bottom: 10px; }
@@ -829,44 +787,44 @@ export default function App() {
       setLoading(true);
       setRequests(await dbFetch());
       setDbError(false);
-    } catch (e) { console.error(e); setDbError(true); }
+    } catch(e){ console.error(e); setDbError(true); }
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { loadRequests(); }, [loadRequests]);
-  useEffect(() => { const id = setInterval(loadRequests, 30000); return () => clearInterval(id); }, [loadRequests]);
+  useEffect(()=>{ loadRequests(); },[loadRequests]);
+  useEffect(()=>{ const id=setInterval(loadRequests,30000); return ()=>clearInterval(id); },[loadRequests]);
 
-  async function handleSubmit(req)      { const n = await dbInsert(req); setRequests(p => [...p, n]); }
-  async function handleApprove(id)      { await dbUpdate(id, { status: "approved" }); setRequests(p => p.map(r => r.id === id ? { ...r, status: "approved" } : r)); }
-  async function handleDeny(id, note)   { await dbUpdate(id, { status: "denied", note }); setRequests(p => p.map(r => r.id === id ? { ...r, status: "denied", note } : r)); }
-  async function handleCancel(id, note) { const n = note || "Cancelled by admin"; await dbUpdate(id, { status: "denied", note: n }); setRequests(p => p.map(r => r.id === id ? { ...r, status: "denied", note: n } : r)); }
-  async function handleCoachCancel(id)  { await dbDelete(id); setRequests(p => p.filter(r => r.id !== id)); }
+  async function handleSubmit(req)      { const n=await dbInsert(req); setRequests(p=>[...p,n]); }
+  async function handleApprove(id)      { await dbUpdate(id,{status:"approved"}); setRequests(p=>p.map(r=>r.id===id?{...r,status:"approved"}:r)); }
+  async function handleDeny(id,note)    { await dbUpdate(id,{status:"denied",note}); setRequests(p=>p.map(r=>r.id===id?{...r,status:"denied",note}:r)); }
+  async function handleCancel(id,note)  { const n=note||"Cancelled by admin"; await dbUpdate(id,{status:"denied",note:n}); setRequests(p=>p.map(r=>r.id===id?{...r,status:"denied",note:n}:r)); }
+  async function handleCoachCancel(id)  { await dbDelete(id); setRequests(p=>p.filter(r=>r.id!==id)); }
 
   return (
     <>
       <style>{css}</style>
       <div className="app">
-        {dbError && <div style={{ background: "#EF4444", color: "#fff", fontSize: 13, fontWeight: 600, textAlign: "center", padding: "10px" }}>⚠️ Could not connect to database. Check your connection and refresh.</div>}
-        {screen === "main" && (
+        {dbError&&<div style={{background:"#EF4444",color:"#fff",fontSize:13,fontWeight:600,textAlign:"center",padding:"10px"}}>⚠️ Could not connect to database. Check your connection and refresh.</div>}
+        {screen==="main"&&(
           <>
             <div className="topbar">
               <div><div className="topbar-logo">⚽ FIELDTIME</div><div className="topbar-sub">Strikers · Field Scheduler</div></div>
-              <button className="topbar-btn" onClick={() => setScreen("adminLogin")}>Admin</button>
+              <button className="topbar-btn" onClick={()=>setScreen("adminLogin")}>Admin</button>
             </div>
-            <MainView requests={requests} loading={loading} onSubmitRequest={handleSubmit} onCoachCancel={handleCoachCancel} />
+            <MainView requests={requests} loading={loading} onSubmitRequest={handleSubmit} onCoachCancel={handleCoachCancel}/>
           </>
         )}
-        {screen === "adminLogin" && <AdminLogin onLogin={() => { setScreen("admin"); loadRequests(); }} onBack={() => setScreen("main")} />}
-        {screen === "admin" && (
+        {screen==="adminLogin"&&<AdminLogin onLogin={()=>{setScreen("admin");loadRequests();}} onBack={()=>setScreen("main")}/>}
+        {screen==="admin"&&(
           <>
             <div className="topbar">
               <div><div className="topbar-logo">⚽ FIELDTIME</div><div className="topbar-sub">Admin Panel</div></div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <button className="topbar-btn" onClick={loadRequests}>🔄</button>
-                <button className="topbar-btn" onClick={() => setScreen("main")}>← Public</button>
+                <button className="topbar-btn" onClick={()=>setScreen("main")}>← Public</button>
               </div>
             </div>
-            <AdminDashboard requests={requests} loading={loading} onApprove={handleApprove} onDeny={handleDeny} onCancel={handleCancel} onLogout={() => setScreen("main")} />
+            <AdminDashboard requests={requests} loading={loading} onApprove={handleApprove} onDeny={handleDeny} onCancel={handleCancel} onLogout={()=>setScreen("main")}/>
           </>
         )}
       </div>
