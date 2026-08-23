@@ -46,7 +46,7 @@ const FIELD_COLORS = {
   "Pomponio":    { light: "#FFFBEB", text: "#B45309" },
 };
 const MAX_TEAMS  = 4;
-const TIME_SLOTS = ["3:00 PM","3:30 PM","4:00 PM","4:30 PM","5:00 PM","5:30 PM","6:00 PM","6:30 PM","7:00 PM","7:30 PM","8:00 PM"];
+const TIME_SLOTS = ["3:00 PM","3:30 PM","4:00 PM","4:30 PM","5:00 PM","5:30 PM","6:00 PM","6:30 PM","7:00 PM","7:30 PM","8:00 PM","8:30 PM","9:00 PM"];
 const DAYS_SHORT = ["SUN","MON","TUE","WED","THU","FRI","SAT"];
 const MONTHS     = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const ADMIN      = { email: "admin@soccer.com", password: "admin123" };
