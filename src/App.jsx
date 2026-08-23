@@ -21,7 +21,7 @@ function fromDB(r) {
     id: r.id, team: r.team, field: r.field, date: r.date,
     start: r.start_time, end: r.end_time, status: r.status,
     note: r.note || "",
-    createdAt: r.created_at || null   // ← submission timestamp
+    createdAt: r.created_at || null
   };
 }
 function toDB(r) {
@@ -49,7 +49,6 @@ const FIELD_COLORS = {
   "U8/U9 Field": { light: "#EFF6FF", text: "#1D4ED8" },
   "Pomponio":    { light: "#FFFBEB", text: "#B45309" },
 };
-// Per-field capacity for the weekly view display
 const FIELD_CAPACITY = {
   "WRAC":        4,
   "U8/U9 Field": 3,
@@ -87,7 +86,7 @@ function getCalDays(y, m) {
 }
 function getWeekStart(d) {
   const x = new Date(d);
-  x.setDate(x.getDate() - x.getDay()); // back to Sunday
+  x.setDate(x.getDate() - x.getDay());
   return x;
 }
 function fmtTimestamp(ts) {
@@ -103,8 +102,8 @@ function exportCSV(requests, startDate, endDate) {
     .filter(r => r.status === "approved" && r.date >= startDate && r.date <= endDate)
     .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
   if (filtered.length === 0) return false;
-  const dayName  = d => new Date(d + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" });
-  const shortDt  = d => new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" });
+  const dayName = d => new Date(d + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" });
+  const shortDt = d => new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "numeric" });
   const rows = [
     ["Date", "Day", "Field", "Team", "Start Time", "End Time", "Status", "Submitted"],
     ...filtered.map(r => [shortDt(r.date), dayName(r.date), r.field, r.team, r.start, r.end, "Approved", r.createdAt ? fmtTimestamp(r.createdAt) : ""])
@@ -216,15 +215,11 @@ function WeeklyView({ requests }) {
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const todayStr = fmt(today);
   const fmtShort = d => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-
-  // Approved + pending only
-  const visible = requests.filter(r => r.status === "approved" || r.status === "pending");
-
+  const visible  = requests.filter(r => r.status === "approved" || r.status === "pending");
   const totalForDay = day => visible.filter(r => r.date === fmt(day)).length;
 
   return (
     <div>
-      {/* Week navigator */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <button onClick={() => setWeekStart(d => addDays(d, -7))}
           style={{ background: "none", border: "none", color: "#F8FAFC", fontSize: 24, cursor: "pointer", padding: "0 8px" }}>‹</button>
@@ -236,28 +231,24 @@ function WeeklyView({ requests }) {
         <button onClick={() => setWeekStart(d => addDays(d, 7))}
           style={{ background: "none", border: "none", color: "#F8FAFC", fontSize: 24, cursor: "pointer", padding: "0 8px" }}>›</button>
       </div>
-
-      {/* This Week button */}
       <div style={{ textAlign: "center", marginBottom: 16 }}>
         <button onClick={() => setWeekStart(getWeekStart(today))}
           style={{ padding: "6px 18px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)", fontFamily: "'DM Sans',sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
           This Week
         </button>
       </div>
-
-      {/* Weekly summary strip */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 16 }}>
         {weekDays.map(day => {
-          const count = totalForDay(day);
-          const dStr  = fmt(day);
+          const count  = totalForDay(day);
+          const dStr   = fmt(day);
           const isToday = dStr === todayStr;
           return (
             <div key={dStr} style={{
               background: isToday ? "rgba(0,200,122,0.15)" : "rgba(255,255,255,0.04)",
-              borderRadius: 8, padding: "8px 4px", textAlign: "center",
+              borderRadius: 8, padding: "8px 2px", textAlign: "center",
               border: isToday ? "1px solid rgba(0,200,122,0.4)" : "1px solid rgba(255,255,255,0.06)"
             }}>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: 700, letterSpacing: 1 }}>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", fontWeight: 700, letterSpacing: 0 }}>
                 {DAYS_SHORT[day.getDay()]}
               </div>
               <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 20, color: count > 0 ? "#00C87A" : "rgba(255,255,255,0.2)", lineHeight: 1.2 }}>
@@ -268,16 +259,12 @@ function WeeklyView({ requests }) {
           );
         })}
       </div>
-
-      {/* Day cards */}
       {weekDays.map(day => {
         const dStr    = fmt(day);
         const isToday = dStr === todayStr;
         const dayReqs = visible.filter(r => r.date === dStr);
-
         return (
           <div key={dStr} className="card" style={{ borderLeft: isToday ? "3px solid #00C87A" : "3px solid transparent" }}>
-            {/* Day header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: dayReqs.length > 0 ? 14 : 0 }}>
               <div>
                 <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 16, letterSpacing: 1 }}>
@@ -289,29 +276,23 @@ function WeeklyView({ requests }) {
                 {dayReqs.length} slot{dayReqs.length !== 1 ? "s" : ""}
               </span>
             </div>
-
-            {dayReqs.length === 0 ? (
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontStyle: "italic" }}>No requests this day</div>
-            ) : (
-              FIELDS.map(field => {
+            {dayReqs.length === 0
+              ? <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontStyle: "italic" }}>No requests this day</div>
+              : FIELDS.map(field => {
                 const fieldReqs = dayReqs.filter(r => r.field === field).sort((a, b) => a.start.localeCompare(b.start));
                 if (fieldReqs.length === 0) return null;
                 const cap      = FIELD_CAPACITY[field];
                 const pct      = Math.min(fieldReqs.length / cap, 1);
                 const barColor = fieldReqs.length >= cap ? "#EF4444" : fieldReqs.length >= cap - 1 ? "#F59E0B" : "#00C87A";
-
                 return (
                   <div key={field} style={{ marginBottom: 14 }}>
-                    {/* Field header */}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                       <FieldPill field={field} />
                       <span style={{ fontSize: 12, fontWeight: 700, color: barColor }}>{fieldReqs.length} / {cap}</span>
                     </div>
-                    {/* Capacity bar */}
                     <div style={{ height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden", marginBottom: 8 }}>
                       <div style={{ height: "100%", width: `${pct * 100}%`, background: barColor, borderRadius: 2, transition: "width 0.3s" }} />
                     </div>
-                    {/* Teams */}
                     {fieldReqs.map((r, idx) => (
                       <div key={r.id} style={{
                         display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -328,7 +309,7 @@ function WeeklyView({ requests }) {
                   </div>
                 );
               })
-            )}
+            }
           </div>
         );
       })}
@@ -386,13 +367,13 @@ function ExportPanel({ requests }) {
 
 // ── Main public + coach view ──────────────────────────────────────────────────
 function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
-  const [tab,        setTab]        = useState("calendar");
-  const [form,       setForm]       = useState({ team: "", field: FIELDS[0], date: fmt(addDays(today, 1)), start: "4:00 PM", end: "5:30 PM" });
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted,  setSubmitted]  = useState(false);
-  const [formErr,    setFormErr]    = useState("");
-  const [cancelModal,setCancelModal]= useState(null);
-  const [cancelling, setCancelling] = useState(false);
+  const [tab,         setTab]        = useState("calendar");
+  const [form,        setForm]       = useState({ team: "", field: FIELDS[0], date: fmt(addDays(today, 1)), start: "4:00 PM", end: "5:30 PM" });
+  const [submitting,  setSubmitting] = useState(false);
+  const [submitted,   setSubmitted]  = useState(false);
+  const [formErr,     setFormErr]    = useState("");
+  const [cancelModal, setCancelModal]= useState(null);
+  const [cancelling,  setCancelling] = useState(false);
 
   async function handleSubmit() {
     if (!form.team.trim())       { setFormErr("Please enter your team name."); return; }
@@ -427,7 +408,8 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
   return (
     <div>
       <div className="screen">
-        {/* ── SCHEDULE (calendar) tab ── */}
+
+        {/* ── SCHEDULE tab ── */}
         {tab === "calendar" && (
           <>
             {submitted && <div className="success-banner">✅ Request submitted! Waiting for admin approval.</div>}
@@ -440,7 +422,8 @@ function MainView({ requests, loading, onSubmitRequest, onCoachCancel }) {
               <span>✅ Approved</span><span>🟡 Pending approval</span>
             </div>
             {loading ? <Spinner /> : <CalMonth requests={requests} filterStatus={["approved","pending"]} onCoachCancel={r => setCancelModal(r)} />}
-            <div className="section-heading" style={{ marginTop: 4 }}>UPCOMING SLOTS</div>
+            {/* ↓ Fixed: more space above Upcoming Slots */}
+            <div className="section-heading" style={{ marginTop: 24 }}>UPCOMING SLOTS</div>
             {loading ? <Spinner /> : upcoming.length === 0
               ? <div className="empty"><div className="empty-icon">📭</div><div className="empty-text">No upcoming slots yet</div></div>
               : upcoming.map(r => (
@@ -609,14 +592,11 @@ function AdminDashboard({ requests, loading, onApprove, onDeny, onCancel, onLogo
           <div className="section-heading" style={{ marginBottom: 2 }}>ADMIN PANEL</div>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>Field Schedule Manager</div>
         </div>
-
         <div className="stats-row">
           <div className="stat-box"><div className="stat-num pulse" style={{ color: "#F59E0B" }}>{pending.length}</div><div className="stat-label">Pending</div></div>
           <div className="stat-box"><div className="stat-num" style={{ color: "#00C87A" }}>{approved.length}</div><div className="stat-label">Approved</div></div>
           <div className="stat-box"><div className="stat-num" style={{ color: "rgba(255,255,255,0.5)" }}>{requests.length}</div><div className="stat-label">Total</div></div>
         </div>
-
-        {/* Scrollable tab bar */}
         <div style={{ display: "flex", gap: 6, marginBottom: 20, overflowX: "auto", paddingBottom: 2 }}>
           {[["queue",`Queue (${pending.length})`],["week","Weekly"],["calendar","Calendar"],["all","All"],["export","Export"]].map(([k,l]) => (
             <button key={k} onClick={() => setTab(k)} style={{
@@ -629,7 +609,6 @@ function AdminDashboard({ requests, loading, onApprove, onDeny, onCancel, onLogo
           ))}
         </div>
 
-        {/* QUEUE */}
         {tab === "queue" && (loading ? <Spinner /> :
           pending.length === 0
             ? <div className="empty"><div className="empty-icon">🎉</div><div className="empty-text">All caught up! No pending requests.</div></div>
@@ -653,7 +632,6 @@ function AdminDashboard({ requests, loading, onApprove, onDeny, onCancel, onLogo
             })
         )}
 
-        {/* WEEKLY */}
         {tab === "week" && (
           <>
             <div style={{ marginBottom: 16 }}>
@@ -664,7 +642,6 @@ function AdminDashboard({ requests, loading, onApprove, onDeny, onCancel, onLogo
           </>
         )}
 
-        {/* CALENDAR */}
         {tab === "calendar" && (loading ? <Spinner /> : (
           <><FieldLegend /><CalMonth requests={requests} showActions
             onApprove={(id, req) => setModal({ id, action: "approve", req })}
@@ -673,7 +650,6 @@ function AdminDashboard({ requests, loading, onApprove, onDeny, onCancel, onLogo
           /></>
         ))}
 
-        {/* ALL */}
         {tab === "all" && (loading ? <Spinner /> :
           ["pending","approved","denied"].map(status => {
             const group = all.filter(r => r.status === status);
@@ -706,11 +682,9 @@ function AdminDashboard({ requests, loading, onApprove, onDeny, onCancel, onLogo
           })
         )}
 
-        {/* EXPORT */}
         {tab === "export" && <ExportPanel requests={requests} />}
       </div>
 
-      {/* Action modal */}
       {modal && (
         <div className="modal-overlay" onClick={() => !saving && setModal(null)}>
           <div className="modal-sheet" onClick={e => e.stopPropagation()}>
@@ -766,20 +740,30 @@ const css = `
   .topbar-sub { font-size: 11px; color: rgba(255,255,255,0.4); letter-spacing: 1px; text-transform: uppercase; margin-top: 1px; }
   .topbar-btn { background: rgba(255,255,255,0.08); border: none; color: #F8FAFC; font-family: 'DM Sans', sans-serif; font-size: 13px; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; }
   .topbar-btn:hover { background: rgba(255,255,255,0.14); }
-  .screen { padding: 20px; padding-bottom: 100px; }
+
+  /* ↓ Fix 1: reduced side padding so calendar has full width */
+  .screen { padding: 16px 10px; padding-bottom: 100px; }
+
   .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: #0D2545; border-top: 1px solid rgba(255,255,255,0.08); display: flex; z-index: 200; }
   .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0 12px; gap: 3px; cursor: pointer; border: none; background: none; color: rgba(255,255,255,0.35); font-family: 'DM Sans', sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 0.3px; transition: color 0.15s; }
   .nav-item.active { color: #00C87A; }
   .nav-icon { font-size: 18px; }
-  .card { background: #112B50; border-radius: 16px; padding: 18px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.06); }
+
+  /* ↓ Fix 4: tighter card padding */
+  .card { background: #112B50; border-radius: 16px; padding: 14px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.06); }
   .card-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; margin-bottom: 14px; }
   .badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; }
   .badge-pending  { background: rgba(245,158,11,0.15); color: #F59E0B; }
   .badge-approved { background: rgba(0,200,122,0.15);  color: #00C87A; }
   .badge-denied   { background: rgba(239,68,68,0.15);  color: #EF4444; }
   .field-pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
-  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-  .cal-header { text-align: center; font-size: 11px; color: rgba(255,255,255,0.4); font-weight: 700; padding: 4px 0; letter-spacing: 1px; }
+
+  /* ↓ Fix 2: tighter calendar cell gap */
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+
+  /* ↓ Fix 3: smaller day headers so Fri/Sat don't get cut off */
+  .cal-header { text-align: center; font-size: 9px; color: rgba(255,255,255,0.4); font-weight: 700; padding: 4px 0; letter-spacing: 0; }
+
   .cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; position: relative; transition: background 0.15s; }
   .cal-day.today { background: rgba(0,200,122,0.2); color: #00C87A; }
   .cal-day.has-events::after { content: ''; position: absolute; bottom: 4px; width: 5px; height: 5px; border-radius: 50%; background: #00C87A; }
@@ -863,7 +847,6 @@ export default function App() {
       <style>{css}</style>
       <div className="app">
         {dbError && <div style={{ background: "#EF4444", color: "#fff", fontSize: 13, fontWeight: 600, textAlign: "center", padding: "10px" }}>⚠️ Could not connect to database. Check your connection and refresh.</div>}
-
         {screen === "main" && (
           <>
             <div className="topbar">
